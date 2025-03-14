@@ -1,10 +1,7 @@
-# XNL-21BCE0216-FS-2
-
 
 # 🏋️‍♂️ HealthHubPro - Health & Fitness Tracking Application
 
 <div align="center">
-  <img src="generated-icon.png" alt="HealthHubPro Logo" width="200"/>
   
   <p>
     <b>A comprehensive health and fitness tracking platform with AI-powered recommendations</b>
