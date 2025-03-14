@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthhubpro-web
+  namespace: production
+  labels:
+    app: healthhubpro
+    component: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: healthhubpro
+      component: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: healthhubpro
+        component: web
+    spec:
+      containers:
+      - name: web
+        image: ${ECR_REPOSITORY_URI}-web:${GITHUB_SHA}
+        ports:
+        - containerPort: 80
+        env:
+        - name: API_URL
+          value: "http://healthhubpro-api"
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: healthhubpro-secrets
+              key: sentry-dsn
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      imagePullSecrets:
+      - name: ecr-secret 

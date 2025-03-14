@@ -1,0 +1,170 @@
+config:
+  target: "https://app.healthhubpro.com"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 50
+      rampTo: 100
+      name: "Ramp up to moderate load"
+    - duration: 300
+      arrivalRate: 100
+      rampTo: 500
+      name: "Ramp up to high load"
+    - duration: 600
+      arrivalRate: 500
+      rampTo: 1000
+      name: "Ramp up to very high load"
+    - duration: 900
+      arrivalRate: 1000
+      rampTo: 5000
+      name: "Ramp up to extreme load"
+    - duration: 1800
+      arrivalRate: 5000
+      rampTo: 10000
+      name: "Ramp up to massive load"
+  processor: "./artillery-functions.js"
+  http:
+    timeout: 10
+  plugins:
+    metrics-by-endpoint: {}
+    expect: {}
+  ensure:
+    maxErrorRate: 5
+    max: 500
+    
+scenarios:
+  - name: "User flow - Dashboard and Workouts"
+    weight: 40
+    flow:
+      - function: "generateRandomUser"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "userToken"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: token
+      - get:
+          url: "/api/dashboard"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - think: 2
+      - get:
+          url: "/api/workouts"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - function: "generateRandomWorkout"
+      - post:
+          url: "/api/workouts"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          json:
+            workoutName: "{{ workoutName }}"
+            workoutType: "{{ workoutType }}"
+            duration: "{{ duration }}"
+            caloriesBurned: "{{ caloriesBurned }}"
+            notes: "{{ notes }}"
+          expect:
+            - statusCode: 201
+            - contentType: json
+      - think: 3
+      - get:
+          url: "/api/dashboard"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            
+  - name: "User flow - Nutrition Tracking"
+    weight: 40
+    flow:
+      - function: "generateRandomUser"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "userToken"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/meals"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - function: "generateRandomMeal"
+      - post:
+          url: "/api/meals"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          json:
+            mealName: "{{ mealName }}"
+            mealType: "{{ mealType }}"
+            calories: "{{ calories }}"
+            protein: "{{ protein }}"
+            carbs: "{{ carbs }}"
+            fat: "{{ fat }}"
+            description: "{{ description }}"
+          expect:
+            - statusCode: 201
+            - contentType: json
+      - think: 2
+      - get:
+          url: "/api/insights/nutrition"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            
+  - name: "User flow - AI Recommendations"
+    weight: 20
+    flow:
+      - function: "generateRandomUser"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "userToken"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/recommendations"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - think: 5
+      - post:
+          url: "/api/recommendations/feedback"
+          headers:
+            Authorization: "Bearer {{ userToken }}"
+          json:
+            recommendationId: "rec-{{ $randomNumber(1000, 9999) }}"
+            rating: "{{ $randomNumber(1, 5) }}"
+            feedback: "Test feedback during load testing"
+          expect:
+            - statusCode: 200
+            - contentType: json 

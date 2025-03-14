@@ -1,0 +1,72 @@
+🚀 FULL-STACK CHALLENGE: AI-POWERED HEALTH & FITNESS TRACKER WITH CI/CD & TESTING 🔥
+⏳ Time Limit: 24 Hours
+🎯 Goal: Build a fully automated health & fitness tracking platform that integrates real-time activity monitoring, personalized AI-driven recommendations, social challenges, and secure medical data storage. The system must be fully tested, deployed with CI/CD, and monitored in production.
+
+📌 PART 1: BUILD A HEALTH & FITNESS TRACKING APPLICATION
+🔥 Mandatory Requirements:
+Frontend:
+
+Use React.js (Next.js preferred) or Vue.js for a mobile-responsive UI.
+Implement server-side rendering (SSR) and lazy loading for performance optimization.
+Use TailwindCSS or Material UI for a clean and modern design.
+Provide real-time charts (D3.js / Chart.js) for activity tracking.
+Backend:
+
+Use Node.js (NestJS preferred), Django, or FastAPI for backend logic.
+Implement GraphQL & REST APIs for flexible data retrieval.
+Use WebSockets for real-time workout session tracking.
+Integrate OpenAI (GPT) or TensorFlow.js for AI-based workout suggestions.
+Database:
+
+Use PostgreSQL or MongoDB for storing user health data securely.
+Implement Redis for caching & fast queries.
+Store real-time activity logs in Time-Series DB (InfluxDB/TimescaleDB).
+Authentication & Security:
+
+Implement OAuth 2.0, JWT, and biometric authentication.
+Use RBAC with different roles: User, Trainer, and Admin.
+Encrypt health data using AES-256.
+Secure API with rate-limiting, CORS, and CSRF protection.
+📌 PART 2: AI-POWERED HEALTH RECOMMENDATION SYSTEM
+🔥 Mandatory Requirements:
+Personalized AI-Based Recommendations:
+
+Train a machine learning model for workout and diet recommendations based on user activity.
+Adapt recommendations using real-time health metrics.
+Automated Diet & Workout Plans:
+
+Generate AI-based meal plans based on BMI, activity level, and goals.
+Provide customized workout routines (cardio, strength, yoga).
+Social Fitness Challenges & Leaderboards:
+
+Users can compete in daily/weekly fitness challenges.
+Implement leaderboards & real-time rankings with WebSockets.
+📌 PART 3: TESTING, CI/CD, AND DEPLOYMENT
+🔥 Mandatory Requirements:
+Unit Testing (Backend & Frontend):
+
+Use Jest & Supertest (Node.js) or Pytest (Django/FastAPI) for backend tests.
+Use React Testing Library & Cypress for frontend testing.
+Achieve 85%+ code coverage.
+Integration & E2E Testing:
+
+Simulate user workouts & diet tracking using Cypress/Puppeteer.
+Validate real-time updates in activity tracking.
+CI/CD Pipeline (Automated Deployments):
+
+Use GitHub Actions, GitLab CI/CD, or Jenkins for automated testing and deployment.
+Deploy to AWS (EKS + RDS), GCP (Cloud Run + Firestore), or Azure (AKS).
+Implement Blue-Green Deployment & Rollbacks for zero downtime.
+Integrate Sentry & Prometheus for monitoring.
+📌 PART 4: PERFORMANCE OPTIMIZATION & SCALABILITY
+🔥 Mandatory Requirements:
+Global Load Balancing:
+
+Use AWS ALB, Cloudflare Load Balancer, or Nginx Reverse Proxy.
+Database Optimization:
+
+Implement query caching & indexing.
+Use sharding for high-volume user data.
+Stress Testing:
+
+Simulate 1 million+ active users using k6 or Artillery.

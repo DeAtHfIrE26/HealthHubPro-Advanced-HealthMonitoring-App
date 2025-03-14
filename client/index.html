@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthHubPro</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding-top: 20px;
+      padding-bottom: 20px;
+    }
+    .header {
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .dashboard-card {
+      margin-bottom: 20px;
+    }
+    .progress {
+      height: 25px;
+    }
+    .chart-container {
+      height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h1>HealthHubPro</h1>
+        <div id="user-info">
+          <button id="login-btn" class="btn btn-primary">Login</button>
+          <button id="register-btn" class="btn btn-outline-primary ms-2">Register</button>
+          <div id="logged-in-user" class="d-none">
+            <span id="username-display"></span>
+            <button id="logout-btn" class="btn btn-outline-danger ms-2">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="login-form" class="d-none">
+      <h2>Login</h2>
+      <form id="login-form-element">
+        <div class="mb-3">
+          <label for="login-username" class="form-label">Username</label>
+          <input type="text" class="form-control" id="login-username" required>
+        </div>
+        <div class="mb-3">
+          <label for="login-password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="login-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+        <button type="button" id="cancel-login" class="btn btn-secondary ms-2">Cancel</button>
+      </form>
+    </div>
+
+    <div id="register-form" class="d-none">
+      <h2>Register</h2>
+      <form id="register-form-element">
+        <div class="mb-3">
+          <label for="register-username" class="form-label">Username</label>
+          <input type="text" class="form-control" id="register-username" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-email" class="form-label">Email</label>
+          <input type="email" class="form-control" id="register-email" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="register-password" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-first-name" class="form-label">First Name</label>
+          <input type="text" class="form-control" id="register-first-name" required>
+        </div>
+        <div class="mb-3">
+          <label for="register-last-name" class="form-label">Last Name</label>
+          <input type="text" class="form-control" id="register-last-name" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Register</button>
+        <button type="button" id="cancel-register" class="btn btn-secondary ms-2">Cancel</button>
+      </form>
+    </div>
+
+    <div id="dashboard" class="d-none">
+      <div class="row">
+        <div class="col-md-8">
+          <h2>Dashboard</h2>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card dashboard-card">
+                <div class="card-body">
+                  <h5 class="card-title">Daily Goals</h5>
+                  <div id="goals-container">
+                    <p>Loading goals...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card dashboard-card">
+                <div class="card-body">
+                  <h5 class="card-title">Today's Activity</h5>
+                  <div id="activity-container">
+                    <p>Loading activity data...</p>
+                  </div>
+                  <button id="update-activity-btn" class="btn btn-primary mt-2">Update Activity</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <div class="card dashboard-card">
+                <div class="card-body">
+                  <h5 class="card-title">Activity History</h5>
+                  <div class="chart-container">
+                    <canvas id="activity-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card dashboard-card">
+            <div class="card-body">
+              <h5 class="card-title">Recommendations</h5>
+              <div id="recommendations-container">
+                <p>Loading recommendations...</p>
+              </div>
+            </div>
+          </div>
+          <div class="card dashboard-card">
+            <div class="card-body">
+              <h5 class="card-title">Challenges</h5>
+              <div id="challenges-container">
+                <p>Loading challenges...</p>
+              </div>
+            </div>
+          </div>
+          <div class="card dashboard-card">
+            <div class="card-body">
+              <h5 class="card-title">Workouts</h5>
+              <div id="workouts-container">
+                <p>Loading workouts...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Activity Modal -->
+  <div class="modal fade" id="update-activity-modal" tabindex="-1" aria-labelledby="update-activity-modal-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="update-activity-modal-label">Update Today's Activity</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="update-activity-form">
+            <div class="mb-3">
+              <label for="steps" class="form-label">Steps</label>
+              <input type="number" class="form-control" id="steps" min="0">
+            </div>
+            <div class="mb-3">
+              <label for="calories" class="form-label">Calories Burned</label>
+              <input type="number" class="form-control" id="calories" min="0">
+            </div>
+            <div class="mb-3">
+              <label for="active-minutes" class="form-label">Active Minutes</label>
+              <input type="number" class="form-control" id="active-minutes" min="0">
+            </div>
+            <div class="mb-3">
+              <label for="water" class="form-label">Water (glasses)</label>
+              <input type="number" class="form-control" id="water" min="0" step="0.5">
+            </div>
+            <div class="mb-3">
+              <label for="sleep" class="form-label">Sleep (hours)</label>
+              <input type="number" class="form-control" id="sleep" min="0" step="0.5">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="save-activity-btn">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // API URL
+    const API_URL = 'http://localhost:3000/api';
+    
+    // Current user
+    let currentUser = null;
+    
+    // DOM elements
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const loginFormElement = document.getElementById('login-form-element');
+    const registerFormElement = document.getElementById('register-form-element');
+    const cancelLoginBtn = document.getElementById('cancel-login');
+    const cancelRegisterBtn = document.getElementById('cancel-register');
+    const loggedInUser = document.getElementById('logged-in-user');
+    const usernameDisplay = document.getElementById('username-display');
+    const dashboard = document.getElementById('dashboard');
+    const goalsContainer = document.getElementById('goals-container');
+    const activityContainer = document.getElementById('activity-container');
+    const recommendationsContainer = document.getElementById('recommendations-container');
+    const challengesContainer = document.getElementById('challenges-container');
+    const workoutsContainer = document.getElementById('workouts-container');
+    const updateActivityBtn = document.getElementById('update-activity-btn');
+    const saveActivityBtn = document.getElementById('save-activity-btn');
+    
+    // Bootstrap modal
+    let updateActivityModal;
+    
+    // Chart
+    let activityChart;
+    
+    // Event listeners
+    loginBtn.addEventListener('click', showLoginForm);
+    registerBtn.addEventListener('click', showRegisterForm);
+    logoutBtn.addEventListener('click', logout);
+    cancelLoginBtn.addEventListener('click', hideLoginForm);
+    cancelRegisterBtn.addEventListener('click', hideRegisterForm);
+    loginFormElement.addEventListener('submit', handleLogin);
+    registerFormElement.addEventListener('submit', handleRegister);
+    updateActivityBtn.addEventListener('click', showUpdateActivityModal);
+    saveActivityBtn.addEventListener('click', saveActivityData);
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', initialize);
+    
+    function initialize() {
+      // Check if user is logged in
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+        showDashboard();
+      }
+      
+      // Initialize Bootstrap modal
+      updateActivityModal = new bootstrap.Modal(document.getElementById('update-activity-modal'));
+    }
+    
+    function showLoginForm() {
+      loginForm.classList.remove('d-none');
+      registerForm.classList.add('d-none');
+      dashboard.classList.add('d-none');
+    }
+    
+    function hideLoginForm() {
+      loginForm.classList.add('d-none');
+    }
+    
+    function showRegisterForm() {
+      registerForm.classList.remove('d-none');
+      loginForm.classList.add('d-none');
+      dashboard.classList.add('d-none');
+    }
+    
+    function hideRegisterForm() {
+      registerForm.classList.add('d-none');
+    }
+    
+    function showDashboard() {
+      dashboard.classList.remove('d-none');
+      loginForm.classList.add('d-none');
+      registerForm.classList.add('d-none');
+      
+      // Update UI
+      loginBtn.classList.add('d-none');
+      registerBtn.classList.add('d-none');
+      loggedInUser.classList.remove('d-none');
+      usernameDisplay.textContent = currentUser.username;
+      
+      // Load data
+      loadGoals();
+      loadActivityStats();
+      loadActivityHistory();
+      loadRecommendations();
+      loadChallenges();
+      loadWorkouts();
+    }
+    
+    function logout() {
+      currentUser = null;
+      localStorage.removeItem('user');
+      
+      // Update UI
+      dashboard.classList.add('d-none');
+      loginBtn.classList.remove('d-none');
+      registerBtn.classList.remove('d-none');
+      loggedInUser.classList.add('d-none');
+    }
+    
+    async function handleLogin(event) {
+      event.preventDefault();
+      
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      
+      try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Login failed');
+        }
+        
+        const user = await response.json();
+        currentUser = user;
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        showDashboard();
+      } catch (error) {
+        alert(`Login failed: ${error.message}`);
+      }
+    }
+    
+    async function handleRegister(event) {
+      event.preventDefault();
+      
+      const username = document.getElementById('register-username').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+      const firstName = document.getElementById('register-first-name').value;
+      const lastName = document.getElementById('register-last-name').value;
+      
+      try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username,
+            email,
+            password,
+            firstName,
+            lastName
+          })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Registration failed');
+        }
+        
+        const user = await response.json();
+        currentUser = user;
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        showDashboard();
+      } catch (error) {
+        alert(`Registration failed: ${error.message}`);
+      }
+    }
+    
+    async function loadGoals() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/goals/${currentUser.id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load goals');
+        }
+        
+        const goals = await response.json();
+        
+        // Display goals
+        goalsContainer.innerHTML = '';
+        
+        if (goals.length === 0) {
+          goalsContainer.innerHTML = '<p>No goals found.</p>';
+          return;
+        }
+        
+        goals.forEach(goal => {
+          const percentage = Math.min(100, Math.round((goal.current / goal.target) * 100));
+          
+          const goalElement = document.createElement('div');
+          goalElement.className = 'mb-3';
+          goalElement.innerHTML = `
+            <div class="d-flex justify-content-between">
+              <span>${goal.type}: ${goal.current} / ${goal.target} ${goal.type === 'water' ? 'glasses' : ''}</span>
+              <span>${percentage}%</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar ${percentage === 100 ? 'bg-success' : ''}" role="progressbar" style="width: ${percentage}%" 
+                aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          `;
+          
+          goalsContainer.appendChild(goalElement);
+        });
+      } catch (error) {
+        console.error('Error loading goals:', error);
+        goalsContainer.innerHTML = '<p class="text-danger">Failed to load goals.</p>';
+      }
+    }
+    
+    async function loadActivityStats() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/activity-stats/${currentUser.id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load activity stats');
+        }
+        
+        const stats = await response.json();
+        
+        // Display activity stats
+        activityContainer.innerHTML = `
+          <div class="row">
+            <div class="col-6 mb-2">
+              <strong>Steps:</strong> ${stats.steps || 0}
+            </div>
+            <div class="col-6 mb-2">
+              <strong>Calories:</strong> ${stats.calories || 0}
+            </div>
+            <div class="col-6 mb-2">
+              <strong>Active Minutes:</strong> ${stats.activeMinutes || 0}
+            </div>
+            <div class="col-6 mb-2">
+              <strong>Water:</strong> ${stats.water || 0} glasses
+            </div>
+            <div class="col-6">
+              <strong>Sleep:</strong> ${stats.sleep || 0} hours
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading activity stats:', error);
+        activityContainer.innerHTML = '<p class="text-danger">Failed to load activity stats.</p>';
+      }
+    }
+    
+    async function loadActivityHistory() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/activity-stats/${currentUser.id}/history?days=7`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load activity history');
+        }
+        
+        const history = await response.json();
+        
+        // Sort by date
+        history.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Prepare data for chart
+        const labels = history.map(item => {
+          const date = new Date(item.date);
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+        
+        const stepsData = history.map(item => item.steps || 0);
+        const caloriesData = history.map(item => item.calories || 0);
+        const activeMinutesData = history.map(item => item.activeMinutes || 0);
+        
+        // Create chart
+        const ctx = document.getElementById('activity-chart').getContext('2d');
+        
+        if (activityChart) {
+          activityChart.destroy();
+        }
+        
+        activityChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Steps',
+                data: stepsData,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                yAxisID: 'y'
+              },
+              {
+                label: 'Calories',
+                data: caloriesData,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                yAxisID: 'y1'
+              },
+              {
+                label: 'Active Minutes',
+                data: activeMinutesData,
+                borderColor: 'rgba(54, 162, 235, 1)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                yAxisID: 'y2'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                  display: true,
+                  text: 'Steps'
+                }
+              },
+              y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                  display: true,
+                  text: 'Calories'
+                },
+                grid: {
+                  drawOnChartArea: false
+                }
+              },
+              y2: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                  display: true,
+                  text: 'Minutes'
+                },
+                grid: {
+                  drawOnChartArea: false
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error loading activity history:', error);
+        document.getElementById('activity-chart').innerHTML = '<p class="text-danger">Failed to load activity history.</p>';
+      }
+    }
+    
+    async function loadRecommendations() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/recommendations/${currentUser.id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load recommendations');
+        }
+        
+        const recommendations = await response.json();
+        
+        // Display recommendations
+        recommendationsContainer.innerHTML = '';
+        
+        if (recommendations.length === 0) {
+          recommendationsContainer.innerHTML = '<p>No recommendations found.</p>';
+          return;
+        }
+        
+        recommendations.forEach(recommendation => {
+          const recElement = document.createElement('div');
+          recElement.className = 'card mb-2';
+          recElement.innerHTML = `
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">${recommendation.type.charAt(0).toUpperCase() + recommendation.type.slice(1)}</h6>
+              <p class="card-text">${recommendation.content}</p>
+              <div class="d-flex justify-content-end">
+                <button class="btn btn-sm btn-outline-success me-2" onclick="provideFeedback(${recommendation.id}, 'positive')">👍</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="provideFeedback(${recommendation.id}, 'negative')">👎</button>
+              </div>
+            </div>
+          `;
+          
+          recommendationsContainer.appendChild(recElement);
+        });
+      } catch (error) {
+        console.error('Error loading recommendations:', error);
+        recommendationsContainer.innerHTML = '<p class="text-danger">Failed to load recommendations.</p>';
+      }
+    }
+    
+    async function loadChallenges() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/users/${currentUser.id}/challenges`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load challenges');
+        }
+        
+        const challenges = await response.json();
+        
+        // Display challenges
+        challengesContainer.innerHTML = '';
+        
+        if (challenges.length === 0) {
+          challengesContainer.innerHTML = '<p>No challenges found.</p>';
+          return;
+        }
+        
+        challenges.forEach(challenge => {
+          const startDate = new Date(challenge.startDate).toLocaleDateString();
+          const endDate = new Date(challenge.endDate).toLocaleDateString();
+          
+          const challengeElement = document.createElement('div');
+          challengeElement.className = 'card mb-2';
+          challengeElement.innerHTML = `
+            <div class="card-body">
+              <h6 class="card-title">${challenge.name}</h6>
+              <p class="card-text">${challenge.description}</p>
+              <p class="card-text"><small class="text-muted">${startDate} - ${endDate}</small></p>
+            </div>
+          `;
+          
+          challengesContainer.appendChild(challengeElement);
+        });
+      } catch (error) {
+        console.error('Error loading challenges:', error);
+        challengesContainer.innerHTML = '<p class="text-danger">Failed to load challenges.</p>';
+      }
+    }
+    
+    async function loadWorkouts() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/workouts`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load workouts');
+        }
+        
+        const workouts = await response.json();
+        
+        // Display workouts
+        workoutsContainer.innerHTML = '';
+        
+        if (workouts.length === 0) {
+          workoutsContainer.innerHTML = '<p>No workouts found.</p>';
+          return;
+        }
+        
+        workouts.slice(0, 3).forEach(workout => {
+          const workoutElement = document.createElement('div');
+          workoutElement.className = 'card mb-2';
+          workoutElement.innerHTML = `
+            <div class="card-body">
+              <h6 class="card-title">${workout.name}</h6>
+              <p class="card-text"><small class="text-muted">${workout.type} | ${workout.difficulty} | ${workout.duration} min</small></p>
+              <button class="btn btn-sm btn-primary" onclick="startWorkout(${workout.id})">Start</button>
+            </div>
+          `;
+          
+          workoutsContainer.appendChild(workoutElement);
+        });
+      } catch (error) {
+        console.error('Error loading workouts:', error);
+        workoutsContainer.innerHTML = '<p class="text-danger">Failed to load workouts.</p>';
+      }
+    }
+    
+    function showUpdateActivityModal() {
+      // Reset form
+      document.getElementById('update-activity-form').reset();
+      
+      // Show modal
+      updateActivityModal.show();
+    }
+    
+    async function saveActivityData() {
+      if (!currentUser) return;
+      
+      const steps = parseInt(document.getElementById('steps').value) || 0;
+      const calories = parseInt(document.getElementById('calories').value) || 0;
+      const activeMinutes = parseInt(document.getElementById('active-minutes').value) || 0;
+      const water = parseFloat(document.getElementById('water').value) || 0;
+      const sleep = parseFloat(document.getElementById('sleep').value) || 0;
+      
+      try {
+        const response = await fetch(`${API_URL}/activity-stats`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            date: new Date(),
+            steps,
+            calories,
+            activeMinutes,
+            water,
+            sleep
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update activity stats');
+        }
+        
+        // Hide modal
+        updateActivityModal.hide();
+        
+        // Reload data
+        loadGoals();
+        loadActivityStats();
+        loadActivityHistory();
+      } catch (error) {
+        console.error('Error updating activity stats:', error);
+        alert(`Failed to update activity stats: ${error.message}`);
+      }
+    }
+    
+    async function provideFeedback(recommendationId, feedback) {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/recommendations/${recommendationId}/feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ feedback })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to provide feedback');
+        }
+        
+        // Reload recommendations
+        loadRecommendations();
+      } catch (error) {
+        console.error('Error providing feedback:', error);
+        alert(`Failed to provide feedback: ${error.message}`);
+      }
+    }
+    
+    async function startWorkout(workoutId) {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/workout-sessions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            workoutId,
+            startTime: new Date()
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to start workout');
+        }
+        
+        alert('Workout started! Good luck!');
+      } catch (error) {
+        console.error('Error starting workout:', error);
+        alert(`Failed to start workout: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>
