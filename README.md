@@ -178,8 +178,8 @@ HealthHubPro follows a modern microservices architecture with:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2.git
-   cd XNL-21BCE0216-FS-2
+   git clone https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git
+   cd HealthHubPro-Advanced-HealthMonitoring-App
    ```
 
 2. Install dependencies:
