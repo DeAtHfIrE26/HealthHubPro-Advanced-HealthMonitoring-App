@@ -2,7 +2,7 @@ import express from "express";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
-import { storage } from "./db/mock"; // Use mock database
+import { storage } from "./storage"; // Use mock storage
 import crypto from "crypto";
 import { z } from "zod";
 
