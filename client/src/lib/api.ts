@@ -1,3 +1,4 @@
+import type { ImportDay, ImportResult } from '@shared/import';
 import type {
   ActivityStat,
   Challenge,
@@ -120,4 +121,10 @@ export const api = {
   leaveChallenge: (id: number) => send<{ ok: true }>('DELETE', `/challenges/${id}/join`),
 
   insights: () => get<{ insights: Insight[]; generatedAt: string }>('/insights'),
+
+  importDays: (days: ImportDay[], strategy: 'merge' | 'overwrite') =>
+    send<{ result: ImportResult }>('POST', '/import', { days, strategy }),
+
+  /** Export is a file download, so it bypasses the JSON request helper. */
+  exportUrl: (format: 'json' | 'csv') => `/api/export?format=${format}`,
 };
