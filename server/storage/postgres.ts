@@ -17,7 +17,7 @@ import type {
   User,
   Workout,
   WorkoutSession,
-} from '../../shared/schema';
+} from '../../shared/schema.js';
 import {
   activityStats,
   challengeParticipants,
@@ -26,8 +26,8 @@ import {
   users,
   workoutSessions,
   workouts,
-} from '../../shared/schema';
-import { addDays, buildSeed, todayIso } from './seed';
+} from '../../shared/schema.js';
+import { addDays, buildSeed, todayIso } from './seed.js';
 import type {
   ActivityPatch,
   NewUser,
@@ -35,7 +35,7 @@ import type {
   Storage,
   UserPatch,
   WorkoutFilter,
-} from './types';
+} from './types.js';
 
 export class PostgresStorage implements Storage {
   readonly persistent = true;

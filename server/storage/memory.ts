@@ -14,8 +14,8 @@ import type {
   User,
   Workout,
   WorkoutSession,
-} from '../../shared/schema';
-import { addDays, buildSeed, todayIso } from './seed';
+} from '../../shared/schema.js';
+import { addDays, buildSeed, todayIso } from './seed.js';
 import type {
   ActivityPatch,
   NewUser,
@@ -23,7 +23,7 @@ import type {
   Storage,
   UserPatch,
   WorkoutFilter,
-} from './types';
+} from './types.js';
 
 function nextId(rows: Array<{ id: number }>): number {
   return rows.reduce((max, r) => (r.id > max ? r.id : max), 0) + 1;

@@ -7,9 +7,9 @@
  */
 import bcrypt from 'bcryptjs';
 import type { NextFunction, Request, Response } from 'express';
-import type { User } from '../shared/schema';
-import { env } from './env';
-import { getStorage } from './storage';
+import type { User } from '../shared/schema.js';
+import { env } from './env.js';
+import { getStorage } from './storage/index.js';
 
 export const SESSION_COOKIE = 'hhp_session';
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

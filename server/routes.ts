@@ -20,11 +20,11 @@ import {
   workoutQuerySchema,
   type ChallengeSummary,
   type GoalProgress,
-} from '../shared/schema';
-import { clearSession, hashPassword, issueSession, requireAuth, verifyPassword } from './auth';
-import { generateInsights } from './insights';
-import { getStorage } from './storage';
-import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from './storage/seed';
+} from '../shared/schema.js';
+import { clearSession, hashPassword, issueSession, requireAuth, verifyPassword } from './auth.js';
+import { generateInsights } from './insights.js';
+import { getStorage } from './storage/index.js';
+import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from './storage/seed.js';
 
 /** Wraps an async handler so rejections reach the error middleware. */
 const h =

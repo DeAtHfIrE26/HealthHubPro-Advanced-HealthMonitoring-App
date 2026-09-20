@@ -8,8 +8,8 @@
  *   DATABASE_URL="postgres://..." npm test
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { PostgresStorage } from '../server/storage/postgres';
-import { todayIso } from '../server/storage/seed';
+import { PostgresStorage } from '../server/storage/postgres.js';
+import { todayIso } from '../server/storage/seed.js';
 
 const url = process.env.DATABASE_URL?.trim();
 const suite = url ? describe : describe.skip;

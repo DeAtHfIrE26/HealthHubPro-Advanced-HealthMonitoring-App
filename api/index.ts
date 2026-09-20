@@ -5,6 +5,6 @@
  * most 12 Serverless Functions per deployment and this API has ~20 routes, so
  * mounting the app once is both simpler and the only thing that fits.
  */
-import { createApp } from '../server/app';
+import { createApp } from '../server/app.js';
 
 export default createApp();

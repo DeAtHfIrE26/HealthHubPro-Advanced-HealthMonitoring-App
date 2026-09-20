@@ -6,7 +6,7 @@
  * here is unexplainable. This keeps the demo free to run and honest about
  * what it is.
  */
-import type { ActivityStat, Goal, Insight, InsightType } from '../shared/schema';
+import type { ActivityStat, Goal, Insight, InsightType } from '../shared/schema.js';
 
 type Candidate = Insight & { priority: number };
 

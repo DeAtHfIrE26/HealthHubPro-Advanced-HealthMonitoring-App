@@ -6,7 +6,7 @@ import {
   updateProfileSchema,
   upsertActivitySchema,
   upsertGoalSchema,
-} from './schema';
+} from './schema.js';
 
 describe('registerSchema', () => {
   const valid = {

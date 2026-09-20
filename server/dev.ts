@@ -1,7 +1,7 @@
 /** Local development server. Vercel uses api/index.ts instead. */
-import { createApp } from './app';
-import { env } from './env';
-import { getStorage } from './storage';
+import { createApp } from './app.js';
+import { env } from './env.js';
+import { getStorage } from './storage/index.js';
 
 const app = createApp();
 
