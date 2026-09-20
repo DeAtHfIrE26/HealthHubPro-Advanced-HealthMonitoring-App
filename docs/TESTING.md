@@ -72,18 +72,36 @@ Every one of these was found by a test or a browser run, not by reading code.
 
 ---
 
+## Verified in production
+
+Against `https://health-hub-pro-advanced-health-monitoring-deathfire26s-projects.vercel.app` on the live deployment, not a local build:
+
+| Check                           | Result                                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /`                         | 200, correct SPA HTML, title, meta and OG tags                                                                                                             |
+| `GET /challenges` (deep link)   | 200 — the SPA rewrite serves `index.html`                                                                                                                  |
+| `GET /api/health`               | 200 `{"status":"ok","persistent":false}`                                                                                                                   |
+| `GET /api/workouts?type=yoga`   | 200, correctly filtered to one result                                                                                                                      |
+| `GET /api/goals` (no session)   | **401** — the auth guard rejects in production                                                                                                             |
+| `GET /api/nonexistent-endpoint` | **404** JSON — the API 404 fires instead of falling through to the SPA                                                                                     |
+| Response headers                | CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` all present; `ratelimit-policy: 300;w=60` confirms the raised ceiling is live |
+
+Not yet exercised against the live URL: the interactive browser flows (sign-in, logging activity, starting a session, leaderboards). Those pass against the production build locally and need one command to confirm in production.
+
+---
+
 ## What is not covered, and why
 
 Stated plainly rather than papered over.
 
-| Gap                                           | Reason                                                                                                                                                                                                                                                     |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **The live deployment has not been verified** | Deployment is blocked on two Vercel account actions (see `docs/DEPLOYMENT.md`). Everything is verified against the production _build_ served locally; nothing here claims the hosted URL works. Run `BASE_URL=https://... npm run test:e2e` once deployed. |
-| **PostgresStorage has not been executed**     | No database was available in the build environment. Its 7 parity tests are written and will run against a real connection string. Until then, only `MemoryStorage` has actually executed — treat the Postgres path as reviewed, not proven.                |
-| **Fonts were not exercised locally**          | The sandbox's TLS proxy blocks `fonts.googleapis.com`, so screenshots show the fallback stack. The non-blocking `<link>` and fallback are correct by construction; confirm the webfonts render once deployed.                                              |
-| **No load testing**                           | The original repo shipped k6 and Artillery configs that were never run. They were removed rather than left as decoration. Meaningful load testing needs a real database and a real deployment.                                                             |
-| **Browser coverage is Chromium only**         | Playwright is configured for Chromium at desktop and Pixel 5 sizes. Firefox and WebKit are one config line away but were not run.                                                                                                                          |
-| **Coverage percentage is not reported**       | The previous config asserted an 85% threshold it never reached because nothing executed. Rather than assert a number that was not measured, `npm run test:coverage` is available and the covered areas are listed above.                                   |
+| Gap                                       | Reason                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The live E2E suite has not been run**   | The deployment **is** live and its HTTP surface is verified (see "Verified in production" below), but Playwright has not been pointed at it: the build sandbox's egress policy blocks `*.vercel.app`, so the browser cannot reach it from there. Run `BASE_URL=https://... npm run test:e2e` locally to close this. |
+| **PostgresStorage has not been executed** | No database was available in the build environment. Its 7 parity tests are written and will run against a real connection string. Until then, only `MemoryStorage` has actually executed — treat the Postgres path as reviewed, not proven.                                                                         |
+| **Fonts were not exercised locally**      | The sandbox's TLS proxy blocks `fonts.googleapis.com`, so screenshots show the fallback stack. The non-blocking `<link>` and fallback are correct by construction; confirm the webfonts render once deployed.                                                                                                       |
+| **No load testing**                       | The original repo shipped k6 and Artillery configs that were never run. They were removed rather than left as decoration. Meaningful load testing needs a real database and a real deployment.                                                                                                                      |
+| **Browser coverage is Chromium only**     | Playwright is configured for Chromium at desktop and Pixel 5 sizes. Firefox and WebKit are one config line away but were not run.                                                                                                                                                                                   |
+| **Coverage percentage is not reported**   | The previous config asserted an 85% threshold it never reached because nothing executed. Rather than assert a number that was not measured, `npm run test:coverage` is available and the covered areas are listed above.                                                                                            |
 
 ---
 

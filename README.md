@@ -10,7 +10,7 @@ Log steps, sleep, hydration and workouts; compete on derived leaderboards; and g
 
 ## Live demo
 
-> **Deployment status:** the application is production-ready and its build is green, but the live URL needs two one-time actions on the Vercel account that could not be performed from the build environment. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — it takes about two minutes.
+### → **[health-hub-pro-advanced-health-monitoring-deathfire26s-projects.vercel.app](https://health-hub-pro-advanced-health-monitoring-deathfire26s-projects.vercel.app)**
 
 **Demo credentials — `demo` / `demo1234`**
 
