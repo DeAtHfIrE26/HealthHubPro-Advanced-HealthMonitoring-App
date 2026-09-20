@@ -22,9 +22,16 @@ import {
   type GoalProgress,
 } from '../shared/schema.js';
 import { clearSession, hashPassword, issueSession, requireAuth, verifyPassword } from './auth.js';
+import { importRequestSchema } from '../shared/import.js';
 import { generateInsights } from './insights.js';
 import { getStorage } from './storage/index.js';
-import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from './storage/seed.js';
+import {
+  DEMO_PASSWORD,
+  DEMO_USERNAME,
+  SAMPLE_USERNAMES,
+  addDays,
+  todayIso,
+} from './storage/seed.js';
 
 /** Wraps an async handler so rejections reach the error middleware. */
 const h =
@@ -413,7 +420,13 @@ export function createRouter(): Router {
       const storage = await getStorage();
       const challenge = await storage.getChallenge(id);
       if (!challenge) throw new HttpError(404, 'That challenge does not exist.');
-      res.json({ challenge, leaderboard: await storage.getLeaderboard(id) });
+      // Flag the seeded pace-setters here rather than in each storage
+      // implementation, so the two backends cannot disagree about it.
+      const leaderboard = (await storage.getLeaderboard(id)).map((row) => ({
+        ...row,
+        isSample: SAMPLE_USERNAMES.has(row.username),
+      }));
+      res.json({ challenge, leaderboard });
     }),
   );
 
@@ -438,6 +451,89 @@ export function createRouter(): Router {
       const storage = await getStorage();
       await storage.leaveChallenge(id, req.user!.id);
       res.json({ ok: true });
+    }),
+  );
+
+  /* ------------------------------------------------------- import / export */
+
+  router.post(
+    '/import',
+    requireAuth,
+    h(async (req, res) => {
+      const { days, strategy } = parseOr400(importRequestSchema, req.body);
+      const storage = await getStorage();
+      const result = await storage.bulkUpsertActivity(req.user!.id, days, strategy);
+      res.json({ result });
+    }),
+  );
+
+  router.get(
+    '/export',
+    requireAuth,
+    h(async (req, res) => {
+      const { format } = parseOr400(
+        z.object({ format: z.enum(['json', 'csv']).default('json') }),
+        req.query,
+      );
+
+      const storage = await getStorage();
+      const userId = req.user!.id;
+      const stamp = todayIso();
+
+      const [activity, goals, sessions, challenges] = await Promise.all([
+        storage.getAllActivity(userId),
+        storage.getGoals(userId),
+        storage.listSessions(userId, 1000),
+        storage.listChallenges(),
+      ]);
+
+      if (format === 'csv') {
+        // Activity is the only series worth a flat file; the rest is in JSON.
+        const header = 'date,steps,calories,activeMinutes,sleepHours,waterLiters';
+        const rows = activity.map((a) =>
+          [a.date, a.steps, a.calories, a.activeMinutes, a.sleepHours, a.waterLiters].join(','),
+        );
+        res
+          .status(200)
+          .type('text/csv')
+          .attachment(`healthhubpro-activity-${stamp}.csv`)
+          .send([header, ...rows].join('\n'));
+        return;
+      }
+
+      const joined = await Promise.all(
+        challenges.map(async (c) => ({
+          challenge: c,
+          joined: await storage.isParticipant(c.id, userId),
+          progress: await storage.getChallengeProgress(c, userId),
+        })),
+      );
+
+      res
+        .status(200)
+        .type('application/json')
+        .attachment(`healthhubpro-export-${stamp}.json`)
+        .send(
+          JSON.stringify(
+            {
+              exportedAt: new Date().toISOString(),
+              profile: toPublicUser(req.user!),
+              goals,
+              activity,
+              sessions: sessions.map((s) => ({
+                date: (s.completedAt ?? s.startedAt).toISOString(),
+                workout: s.workout.name,
+                type: s.workout.type,
+                elapsedSec: s.elapsedSec,
+                caloriesBurned: s.caloriesBurned,
+                completed: s.completed,
+              })),
+              challenges: joined.filter((c) => c.joined),
+            },
+            null,
+            2,
+          ),
+        );
     }),
   );
 

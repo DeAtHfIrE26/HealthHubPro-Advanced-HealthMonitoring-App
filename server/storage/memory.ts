@@ -10,11 +10,12 @@ import type {
   Challenge,
   Goal,
   GoalType,
-  LeaderboardRow,
+  LeaderboardEntry,
   User,
   Workout,
   WorkoutSession,
 } from '../../shared/schema.js';
+import type { ImportDay, ImportResult } from '../../shared/import.js';
 import { addDays, buildSeed, todayIso } from './seed.js';
 import type {
   ActivityPatch,
@@ -27,6 +28,40 @@ import type {
 
 function nextId(rows: Array<{ id: number }>): number {
   return rows.reduce((max, r) => (r.id > max ? r.id : max), 0) + 1;
+}
+
+/**
+ * Decides what an import actually writes for an existing day.
+ *
+ * `merge` only fills metrics currently at zero, so importing history can
+ * never silently overwrite something the user logged by hand.
+ */
+export function resolveMerge(
+  existing: Pick<
+    ActivityStat,
+    'steps' | 'calories' | 'activeMinutes' | 'sleepHours' | 'waterLiters'
+  >,
+  incoming: Omit<ImportDay, 'date'>,
+  strategy: 'merge' | 'overwrite',
+): Partial<ActivityStat> {
+  const patch: Partial<ActivityStat> = {};
+  const keys = ['steps', 'calories', 'activeMinutes', 'sleepHours', 'waterLiters'] as const;
+
+  for (const key of keys) {
+    const value = incoming[key];
+    if (value === undefined) continue;
+    if (strategy === 'merge' && existing[key] !== 0) continue;
+    if (existing[key] === value) continue;
+    patch[key] = value;
+  }
+
+  return patch;
+}
+
+export function rangeOf(dates: string[]): { from: string; to: string } | null {
+  if (dates.length === 0) return null;
+  const sorted = [...dates].sort();
+  return { from: sorted[0]!, to: sorted[sorted.length - 1]! };
 }
 
 /** Inclusive on both ends, comparing YYYY-MM-DD lexicographically. */
@@ -225,6 +260,56 @@ export class MemoryStorage implements Storage {
     return out;
   }
 
+  async bulkUpsertActivity(
+    userId: number,
+    days: ImportDay[],
+    strategy: 'merge' | 'overwrite',
+  ): Promise<ImportResult> {
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const written: string[] = [];
+
+    for (const day of days) {
+      const { date, ...metrics } = day;
+      const existing = this.activity.find((a) => a.userId === userId && a.date === date);
+
+      if (!existing) {
+        this.activity.push({
+          id: nextId(this.activity),
+          userId,
+          date,
+          steps: metrics.steps ?? 0,
+          calories: metrics.calories ?? 0,
+          activeMinutes: metrics.activeMinutes ?? 0,
+          sleepHours: metrics.sleepHours ?? 0,
+          waterLiters: metrics.waterLiters ?? 0,
+        });
+        created += 1;
+        written.push(date);
+        continue;
+      }
+
+      const patch = resolveMerge(existing, metrics, strategy);
+      if (Object.keys(patch).length === 0) {
+        skipped += 1;
+        continue;
+      }
+
+      Object.assign(existing, patch);
+      updated += 1;
+      written.push(date);
+    }
+
+    return { created, updated, skipped, range: rangeOf(written) };
+  }
+
+  async getAllActivity(userId: number): Promise<ActivityStat[]> {
+    return this.activity
+      .filter((a) => a.userId === userId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   /* ---------------------------------------------------------------- goals */
 
   async getGoals(userId: number): Promise<Goal[]> {
@@ -367,7 +452,7 @@ export class MemoryStorage implements Storage {
       .reduce((sum, a) => sum + a[field], 0);
   }
 
-  async getLeaderboard(challengeId: number): Promise<LeaderboardRow[]> {
+  async getLeaderboard(challengeId: number): Promise<LeaderboardEntry[]> {
     const challenge = await this.getChallenge(challengeId);
     if (!challenge) return [];
 

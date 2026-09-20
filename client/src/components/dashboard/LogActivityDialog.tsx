@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import type { ActivityStat } from '@shared/schema';
 import { Alert } from '@/components/ui/alert';
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { ApiError, api } from '@/lib/api';
+import { formatRelativeDay, todayIso } from '@/lib/format';
 
 const FIELDS = [
   { key: 'steps', label: 'Steps', step: '1', max: 300000, unit: '' },
@@ -45,21 +46,43 @@ export function LogActivityDialog({
   activity: ActivityStat | undefined;
 }) {
   const queryClient = useQueryClient();
+  const today = todayIso();
+  const [date, setDate] = useState(today);
   const [form, setForm] = useState<FormState>(() => toFormState(activity));
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Re-sync when the dialog reopens so it never shows a stale draft.
+  // Today's numbers are already on the page; any other day has to be fetched
+  // so the form edits what is stored rather than overwriting it with zeroes.
+  const other = useQuery({
+    queryKey: ['activity', date],
+    queryFn: () => api.activity(date),
+    enabled: open && date !== today,
+  });
+
+  const stored = date === today ? activity : other.data?.activity;
+  const loading = date !== today && other.isPending;
+
+  // Re-sync when the dialog reopens, and when the chosen day's data arrives,
+  // so it never shows a stale draft or another day's numbers.
   useEffect(() => {
     if (open) {
-      setForm(toFormState(activity));
+      setForm(toFormState(stored));
       setFormError(null);
     }
-  }, [open, activity]);
+  }, [open, stored]);
+
+  // A fresh open always starts on today.
+  useEffect(() => {
+    if (open) setDate(today);
+  }, [open, today]);
 
   const mutation = useMutation({
-    mutationFn: (patch: Record<string, number>) => api.saveActivity(patch),
+    mutationFn: (patch: Record<string, number | string>) => api.saveActivity(patch),
     onSuccess: async () => {
-      toast({ title: 'Activity saved', tone: 'success' });
+      toast({
+        title: `Activity saved for ${formatRelativeDay(date, today).toLowerCase()}`,
+        tone: 'success',
+      });
       await queryClient.invalidateQueries();
       onOpenChange(false);
     },
@@ -72,7 +95,12 @@ export function LogActivityDialog({
     event.preventDefault();
     setFormError(null);
 
-    const patch: Record<string, number> = {};
+    if (date > today) {
+      setFormError('That day has not happened yet.');
+      return;
+    }
+
+    const patch: Record<string, number | string> = { date };
     for (const field of FIELDS) {
       const raw = form[field.key].trim();
       const value = raw === '' ? 0 : Number(raw);
@@ -94,9 +122,9 @@ export function LogActivityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Log today&apos;s activity</DialogTitle>
+          <DialogTitle>Log activity</DialogTitle>
           <DialogDescription>
-            Update any metric. Values replace what is already recorded for today.
+            Update any metric. Values replace what is already recorded for the day you pick.
           </DialogDescription>
         </DialogHeader>
 
@@ -107,6 +135,23 @@ export function LogActivityDialog({
                 {formError}
               </Alert>
             ) : null}
+
+            <div className="mb-4 flex flex-col gap-1.5">
+              <Label htmlFor="activity-date">Day</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="activity-date"
+                  type="date"
+                  className="w-auto"
+                  max={today}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value || today)}
+                />
+                <span aria-live="polite" className="text-sm text-text-muted">
+                  {loading ? 'Loading…' : formatRelativeDay(date, today)}
+                </span>
+              </div>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {FIELDS.map((field) => (
@@ -125,6 +170,7 @@ export function LogActivityDialog({
                     max={field.max}
                     step={field.step}
                     value={form[field.key]}
+                    disabled={loading}
                     onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
                   />
                 </div>
@@ -136,7 +182,7 @@ export function LogActivityDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || loading}>
               {mutation.isPending ? 'Saving…' : 'Save activity'}
             </Button>
           </DialogFooter>

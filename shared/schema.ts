@@ -216,9 +216,23 @@ export const isoDateSchema = z
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }, 'Not a valid calendar date');
 
+/**
+ * A date that has actually happened.
+ *
+ * One day of slack, deliberately: the browser sends the user's *local* date,
+ * and a user east of UTC is legitimately living on tomorrow's date as far as
+ * this server is concerned. Without the slack, someone in Auckland could not
+ * log their own morning.
+ */
+export const pastOrTodaySchema = isoDateSchema.refine((value) => {
+  const limit = new Date();
+  limit.setUTCDate(limit.getUTCDate() + 1);
+  return value <= limit.toISOString().slice(0, 10);
+}, 'That date is in the future');
+
 export const upsertActivitySchema = z
   .object({
-    date: isoDateSchema.optional(),
+    date: pastOrTodaySchema.optional(),
     steps: z.number().int().min(0).max(300_000).optional(),
     calories: z.number().int().min(0).max(30_000).optional(),
     activeMinutes: z.number().int().min(0).max(1440).optional(),
@@ -275,7 +289,7 @@ export type WorkoutQuery = z.infer<typeof workoutQuerySchema>;
 
 export type GoalProgress = Goal & { current: number; percent: number };
 
-export type LeaderboardRow = {
+export type LeaderboardEntry = {
   userId: number;
   name: string;
   username: string;
@@ -283,6 +297,16 @@ export type LeaderboardRow = {
   percent: number;
   rank: number;
 };
+
+/**
+ * A leaderboard entry as the API presents it.
+ *
+ * `isSample` marks the generated pace-setter accounts that ship with the seed.
+ * They exist so a leaderboard has something on it before anyone else signs up,
+ * and the UI says so — a standing you are chasing needs to be honest about
+ * whether there is a person on the other end of it.
+ */
+export type LeaderboardRow = LeaderboardEntry & { isSample: boolean };
 
 export type ChallengeSummary = Challenge & {
   participantCount: number;

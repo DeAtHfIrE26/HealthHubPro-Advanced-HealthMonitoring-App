@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
+  Settings as SettingsIcon,
   Sparkles,
   Sun,
   Trophy,
@@ -39,6 +40,9 @@ const NAV: NavItem[] = [
   { href: '/challenges', label: 'Challenges', icon: Trophy },
   { href: '/insights', label: 'Insights', icon: Sparkles },
 ];
+
+/** Shown in the mobile bar only; on desktop it lives in the account menu. */
+const SETTINGS_ITEM: NavItem = { href: '/settings', label: 'Settings', icon: SettingsIcon };
 
 function useIsPersistent(): boolean | undefined {
   const { data } = useQuery({
@@ -129,6 +133,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuLabel>
                   <div className="px-2 pb-1 text-xs text-text-subtle">@{user.username}</div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">
+                      <SettingsIcon className="size-4" aria-hidden="true" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => void signOut()}>
                     <LogOut className="size-4" aria-hidden="true" />
                     Sign out
@@ -149,8 +159,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 backdrop-blur md:hidden"
       >
-        <div className="grid grid-cols-4">
-          {NAV.map(({ href, label, icon: Icon }) => (
+        <div className="grid grid-cols-5">
+          {[...NAV, SETTINGS_ITEM].map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}

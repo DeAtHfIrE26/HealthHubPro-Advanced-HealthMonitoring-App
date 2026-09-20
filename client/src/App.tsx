@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { Suspense, lazy } from 'react';
 import { Redirect, Route, Switch } from 'wouter';
 import { AppShell } from '@/components/layout/AppShell';
 import { Toaster } from '@/components/ui/toaster';
@@ -13,6 +14,12 @@ import Login from '@/pages/Login';
 import NotFound from '@/pages/NotFound';
 import Register from '@/pages/Register';
 import Workouts from '@/pages/Workouts';
+
+/*
+ * Settings carries the import parsers and is visited rarely, so it is split
+ * out of the entry chunk rather than taxing every dashboard load.
+ */
+const Settings = lazy(() => import('@/pages/Settings'));
 
 function FullPageSpinner() {
   return (
@@ -40,6 +47,13 @@ function PrivateRoutes() {
         <Route path="/workouts" component={Workouts} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/insights" component={Insights} />
+        <Route path="/settings">
+          {() => (
+            <Suspense fallback={<FullPageSpinner />}>
+              <Settings />
+            </Suspense>
+          )}
+        </Route>
         <Route component={NotFound} />
       </Switch>
     </AppShell>

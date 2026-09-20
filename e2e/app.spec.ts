@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoA11yViolations, signInAsDemo, watchForErrors } from './helpers';
+import { expectNoA11yViolations, signInAsDemo, toastText, watchForErrors } from './helpers';
 
 test.describe('core flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,11 +34,51 @@ test.describe('core flows', () => {
     await dialog.getByLabel(/^Steps/).fill('17500');
     await dialog.getByRole('button', { name: /save activity/i }).click();
 
-    await expect(page.getByText(/activity saved/i).first()).toBeVisible();
+    await expect(toastText(page, /activity saved/i)).toBeVisible();
     // Scoped to the tiles: the same figure also appears in the goal ring and
     // the chart's table view, which would be a strict-mode violation.
     const totals = page.getByRole('region', { name: "Today's totals" });
     await expect(totals.getByText('17,500')).toBeVisible();
+  });
+
+  test('a past day can be corrected without touching today', async ({ page }) => {
+    const totals = page.getByRole('region', { name: "Today's totals" });
+    const todayBefore = await totals
+      .getByText(/^[\d,]+$/)
+      .first()
+      .textContent();
+
+    await page.getByRole('button', { name: /log activity/i }).click();
+    const dialog = page.getByRole('dialog');
+
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    await dialog.getByLabel('Day').fill(yesterday);
+    await expect(dialog.getByText('Yesterday')).toBeVisible();
+
+    // The form has to load that day's stored numbers, not offer zeroes.
+    await expect(dialog.getByLabel(/^Steps/)).not.toHaveValue('0');
+
+    await dialog.getByLabel(/^Steps/).fill('4321');
+    await dialog.getByRole('button', { name: /save activity/i }).click();
+    await expect(toastText(page, /activity saved for yesterday/i)).toBeVisible();
+
+    // Today is untouched...
+    await expect(totals.getByText(/^[\d,]+$/).first()).toHaveText(todayBefore ?? '');
+
+    // ...and yesterday now reads 4,321 in the chart's table view.
+    await page.getByText('View as table').click();
+    await expect(page.getByRole('table').getByText('4,321')).toBeVisible();
+  });
+
+  test('the activity dialog will not record a future day', async ({ page }) => {
+    await page.getByRole('button', { name: /log activity/i }).click();
+    const dialog = page.getByRole('dialog');
+
+    const nextWeek = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    await dialog.getByLabel('Day').fill(nextWeek);
+    await dialog.getByRole('button', { name: /save activity/i }).click();
+
+    await expect(dialog.getByText(/has not happened yet/i)).toBeVisible();
   });
 
   test('the activity dialog rejects an out-of-range value', async ({ page }) => {
@@ -119,6 +159,14 @@ test.describe('core flows', () => {
     await expect(rows.first()).toBeVisible();
   });
 
+  test('the leaderboard says which entries are generated', async ({ page }) => {
+    await page.getByRole('link', { name: 'Challenges' }).first().click();
+    await page.getByRole('button', { name: 'Leaderboard' }).first().click();
+
+    await expect(page.getByText('Sample').first()).toBeVisible();
+    await expect(page.getByText(/generated pace-setters/i).first()).toBeVisible();
+  });
+
   test('a challenge can be joined and left', async ({ page }) => {
     await page.getByRole('link', { name: 'Challenges' }).first().click();
 
@@ -193,7 +241,7 @@ test.describe('navigation and resilience', () => {
     const save = dialog.getByRole('button', { name: /save activity/i });
     await save.click();
     // The button disables while pending, so a second click cannot double-post.
-    await expect(page.getByText(/activity saved/i).first()).toBeVisible();
+    await expect(toastText(page, /activity saved/i)).toBeVisible();
     const totals = page.getByRole('region', { name: "Today's totals" });
     await expect(totals.getByText('8,888')).toBeVisible();
   });

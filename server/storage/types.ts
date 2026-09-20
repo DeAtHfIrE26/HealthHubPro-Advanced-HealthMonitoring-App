@@ -1,3 +1,4 @@
+import type { ImportDay, ImportResult } from '../../shared/import.js';
 import type {
   ActivityStat,
   Challenge,
@@ -5,7 +6,7 @@ import type {
   Difficulty,
   Goal,
   GoalType,
-  LeaderboardRow,
+  LeaderboardEntry,
   User,
   Workout,
   WorkoutSession,
@@ -57,6 +58,16 @@ export interface Storage {
   /** Oldest-first, exactly `days` entries ending at `endDate`, zero-filled. */
   getActivityHistory(userId: number, days: number, endDate: string): Promise<ActivityStat[]>;
 
+  /** Bulk import. `merge` only fills metrics currently at zero. */
+  bulkUpsertActivity(
+    userId: number,
+    days: ImportDay[],
+    strategy: 'merge' | 'overwrite',
+  ): Promise<ImportResult>;
+
+  /** Every activity row for the user, oldest first. Used by export. */
+  getAllActivity(userId: number): Promise<ActivityStat[]>;
+
   getGoals(userId: number): Promise<Goal[]>;
   upsertGoal(userId: number, type: GoalType, target: number): Promise<Goal>;
 
@@ -79,7 +90,7 @@ export interface Storage {
   leaveChallenge(challengeId: number, userId: number): Promise<void>;
   countParticipants(challengeId: number): Promise<number>;
   /** Ranked, highest progress first. Progress is derived, never cached. */
-  getLeaderboard(challengeId: number): Promise<LeaderboardRow[]>;
+  getLeaderboard(challengeId: number): Promise<LeaderboardEntry[]>;
   getChallengeProgress(challenge: Challenge, userId: number): Promise<number>;
 }
 

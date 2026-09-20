@@ -57,44 +57,62 @@ function Leaderboard({ challengeId }: { challengeId: number }) {
     return <p className="py-4 text-center text-sm text-text-muted">Nobody has joined yet.</p>;
   }
 
+  const samples = rows.filter((row) => row.isSample).length;
+
   return (
-    <ol className="space-y-1 pt-2">
-      {rows.map((row) => {
-        const isYou = row.userId === user?.id;
-        return (
-          <li
-            key={row.userId}
-            className={cn(
-              'flex items-center gap-3 rounded-md px-2 py-1.5',
-              isYou && 'bg-accent/10',
-            )}
-          >
-            <span
+    <>
+      <ol className="space-y-1 pt-2">
+        {rows.map((row) => {
+          const isYou = row.userId === user?.id;
+          return (
+            <li
+              key={row.userId}
               className={cn(
-                'numeric w-5 shrink-0 text-center text-xs',
-                row.rank === 1 ? 'text-accent' : 'text-text-subtle',
+                'flex items-center gap-3 rounded-md px-2 py-1.5',
+                isYou && 'bg-accent/10',
               )}
             >
-              {row.rank === 1 ? (
-                <Crown className="mx-auto size-3.5" aria-label="Leader" />
-              ) : (
-                row.rank
-              )}
-            </span>
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-2xs font-semibold text-text-muted">
-              {initials(row.name.split(' ')[0] ?? '', row.name.split(' ')[1] ?? '')}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm">
-              {row.name}
-              {isYou ? <span className="ml-1 text-xs text-accent">(you)</span> : null}
-            </span>
-            <span className="numeric shrink-0 text-sm text-text-muted">
-              {formatNumber(row.progress)}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+              <span
+                className={cn(
+                  'numeric w-5 shrink-0 text-center text-xs',
+                  row.rank === 1 ? 'text-accent' : 'text-text-subtle',
+                )}
+              >
+                {row.rank === 1 ? (
+                  <Crown className="mx-auto size-3.5" aria-label="Leader" />
+                ) : (
+                  row.rank
+                )}
+              </span>
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-2xs font-semibold text-text-muted">
+                {initials(row.name.split(' ')[0] ?? '', row.name.split(' ')[1] ?? '')}
+              </span>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+                <span className="truncate">{row.name}</span>
+                {isYou ? <span className="text-xs text-accent">(you)</span> : null}
+                {row.isSample ? (
+                  <span
+                    className="shrink-0 rounded-sm border border-border px-1 py-px text-2xs uppercase tracking-wide text-text-subtle"
+                    title="A generated pace-setter, not a real person"
+                  >
+                    Sample
+                  </span>
+                ) : null}
+              </span>
+              <span className="numeric shrink-0 text-sm text-text-muted">
+                {formatNumber(row.progress)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {samples > 0 ? (
+        <p className="px-2 pt-2 text-2xs text-text-subtle">
+          {samples} of these are generated pace-setters that ship with the app, so a leaderboard has
+          something on it before anyone else joins. They are not real people.
+        </p>
+      ) : null}
+    </>
   );
 }
 

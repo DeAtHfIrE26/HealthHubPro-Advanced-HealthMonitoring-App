@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app.js';
 import { setStorageForTesting } from '../server/storage/index.js';
 import { MemoryStorage } from '../server/storage/memory.js';
-import { DEMO_PASSWORD, DEMO_USERNAME, todayIso } from '../server/storage/seed.js';
+import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from '../server/storage/seed.js';
 
 let app: Express;
 
@@ -292,6 +292,37 @@ describe('activity', () => {
     expect(res.status).toBe(400);
   });
 
+  it('writes to an explicit past date without touching today', async () => {
+    const cookie = await registerFresh('backfiller');
+    const past = addDays(todayIso(), -3);
+
+    await request(app).put('/api/activity').set('Cookie', cookie).send({ date: past, steps: 6100 });
+
+    const back = await request(app).get(`/api/activity?date=${past}`).set('Cookie', cookie);
+    expect(back.body.activity.steps).toBe(6100);
+
+    const today = await request(app).get('/api/activity').set('Cookie', cookie);
+    expect(today.body.activity.steps).toBe(0);
+  });
+
+  it('refuses to record a day that has not happened', async () => {
+    const cookie = await signInAsDemo();
+    const res = await request(app)
+      .put('/api/activity')
+      .set('Cookie', cookie)
+      .send({ date: addDays(todayIso(), 5), steps: 10_000 });
+    expect(res.status).toBe(400);
+  });
+
+  it('still accepts tomorrow, because a user east of UTC is already living it', async () => {
+    const cookie = await signInAsDemo();
+    const res = await request(app)
+      .put('/api/activity')
+      .set('Cookie', cookie)
+      .send({ date: addDays(todayIso(), 1), steps: 10 });
+    expect(res.status).toBe(200);
+  });
+
   it('returns exactly the requested number of history days, oldest first', async () => {
     const cookie = await signInAsDemo();
     const res = await request(app).get('/api/activity/history?days=10').set('Cookie', cookie);
@@ -525,6 +556,18 @@ describe('challenges', () => {
     for (let i = 1; i < rows.length; i += 1) {
       expect(rows[i - 1].progress).toBeGreaterThanOrEqual(rows[i].progress);
     }
+  });
+
+  it('marks the generated pace-setters and does not mark a real account', async () => {
+    const cookie = await signInAsDemo();
+    await request(app).post('/api/challenges/1/join').set('Cookie', cookie);
+
+    const res = await request(app).get('/api/challenges/1/leaderboard').set('Cookie', cookie);
+    const rows: Array<{ username: string; isSample: boolean }> = res.body.leaderboard;
+
+    expect(rows.filter((r) => r.isSample).length).toBeGreaterThan(0);
+    // The signed-in human is never labelled a sample.
+    expect(rows.find((r) => r.username === DEMO_USERNAME)?.isSample).toBe(false);
   });
 
   it('never exposes a password hash on the leaderboard', async () => {
