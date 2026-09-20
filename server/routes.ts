@@ -1,849 +1,466 @@
-import express from "express";
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { WebSocketServer } from "ws";
-import { storage } from "./storage"; // Use mock storage
-import crypto from "crypto";
-import { z } from "zod";
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from 'express';
+import { z } from 'zod';
+import {
+  finishSessionSchema,
+  historyQuerySchema,
+  isoDateSchema,
+  loginSchema,
+  registerSchema,
+  startSessionSchema,
+  toPublicUser,
+  updateProfileSchema,
+  upsertActivitySchema,
+  upsertGoalSchema,
+  workoutQuerySchema,
+  type ChallengeSummary,
+  type GoalProgress,
+} from '../shared/schema';
+import { clearSession, hashPassword, issueSession, requireAuth, verifyPassword } from './auth';
+import { generateInsights } from './insights';
+import { getStorage } from './storage';
+import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from './storage/seed';
 
-// Mock schemas for validation
-const insertUserSchema = z.object({
-  username: z.string().min(3).max(50),
-  password: z.string().min(6),
-  email: z.string().email(),
-  firstName: z.string(),
-  lastName: z.string(),
-  height: z.number().optional(),
-  weight: z.number().optional(),
-  gender: z.string().optional(),
-  dateOfBirth: z.date().optional(),
-  fitnessLevel: z.string().optional()
-});
-
-const insertActivityStatsSchema = z.object({
-  userId: z.number(),
-  date: z.date(),
-  steps: z.number().min(0).optional(),
-  calories: z.number().min(0).optional(),
-  activeMinutes: z.number().min(0).optional(),
-  sleep: z.number().min(0).optional(),
-  water: z.number().min(0).optional()
-});
-
-const insertGoalSchema = z.object({
-  userId: z.number(),
-  type: z.string(),
-  target: z.number().min(0),
-  period: z.string().optional(),
-  description: z.string().optional()
-});
-
-// Simple authentication middleware
-const authenticate = (req: any, res: any, next: any) => {
-  // For demo purposes, we'll skip actual authentication
-  next();
-};
-
-// Simple authorization middleware
-const authorize = (resource: string, level: string) => {
-  return (req: any, res: any, next: any) => {
-    // For demo purposes, we'll skip actual authorization
-    next();
+/** Wraps an async handler so rejections reach the error middleware. */
+const h =
+  (fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
+  (req, res, next: NextFunction) => {
+    fn(req, res).catch(next);
   };
-};
 
-// Mock permission levels
-const PermissionLevel = {
-  READ: 'read',
-  WRITE: 'write',
-  ADMIN: 'admin'
-};
-
-// Mock middleware
-const rateLimit = (limit: number, windowMs: number) => {
-  return (req: any, res: any, next: any) => {
-    next();
-  };
-};
-
-const corsMiddleware = () => {
-  return (req: any, res: any, next: any) => {
-    next();
-  };
-};
-
-const csrfProtection = () => {
-  return (req: any, res: any, next: any) => {
-    next();
-  };
-};
-
-const securityHeaders = (req: any, res: any, next: any) => {
-  next();
-};
-
-const cacheMiddleware = (seconds: number) => {
-  return (req: any, res: any, next: any) => {
-    next();
-  };
-};
-
-// Mock AI service
-const aiService = {
-  generateAllRecommendations: async (userId: number) => {
-    // Create some sample recommendations
-    await storage.createRecommendation({
-      userId,
-      type: 'workout',
-      content: 'Based on your profile, we recommend trying our "Morning Cardio" workout.',
-      createdAt: new Date()
-    });
-    
-    await storage.createRecommendation({
-      userId,
-      type: 'nutrition',
-      content: 'Consider increasing your protein intake to support muscle recovery.',
-      createdAt: new Date()
-    });
-    
-    await storage.createRecommendation({
-      userId,
-      type: 'sleep',
-      content: 'Try to maintain a consistent sleep schedule for better recovery.',
-      createdAt: new Date()
-    });
+export class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'HttpError';
   }
-};
+}
 
-// Mock logging functions
-const logActivity = async (userId: number, activityType: string, data: any) => {
-  console.log(`[ACTIVITY LOG] User ${userId}: ${activityType}`, data);
-};
+function parseOr400<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new HttpError(400, 'Please check the highlighted fields.', result.error.flatten());
+  }
+  return result.data;
+}
 
-const logWorkoutSession = async (userId: number, sessionId: number, workoutId: number, data: any) => {
-  console.log(`[WORKOUT LOG] User ${userId}, Session ${sessionId}, Workout ${workoutId}`, data);
-};
+function parseId(raw: string | undefined): number {
+  const id = Number.parseInt(raw ?? '', 10);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Invalid id.');
+  return id;
+}
 
-// Mock workout plan generator
-const generateWorkoutPlan = async (userId: number, preferences: any) => {
-  const workouts = await storage.getWorkouts();
-  return {
-    userId,
-    workouts: workouts.slice(0, 3),
-    schedule: ['Monday', 'Wednesday', 'Friday'],
-    notes: 'This plan is tailored to your fitness level and goals.'
-  };
-};
+/** Today's value for a goal type, read from that day's activity row. */
+function currentForGoal(
+  type: GoalProgress['type'],
+  today: {
+    steps: number;
+    calories: number;
+    activeMinutes: number;
+    sleepHours: number;
+    waterLiters: number;
+  } | null,
+): number {
+  if (!today) return 0;
+  switch (type) {
+    case 'steps':
+      return today.steps;
+    case 'calories':
+      return today.calories;
+    case 'activeMinutes':
+      return today.activeMinutes;
+    case 'sleep':
+      return today.sleepHours;
+    case 'water':
+      return today.waterLiters;
+  }
+}
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  const apiRouter = express.Router();
-  
-  // Apply security middleware
-  apiRouter.use(corsMiddleware());
-  apiRouter.use(securityHeaders);
-  // apiRouter.use(rateLimit(100, 60000)); // Temporarily disable rate limiting for development
-  
-  // Apply CSRF protection to non-GET routes
-  // apiRouter.use(csrfProtection()); // Temporarily disable CSRF for development
-  
-  // Generate CSRF token
-  apiRouter.get("/auth/csrf-token", (req, res) => {
-    // Generate a new token
-    const token = crypto.randomBytes(32).toString('hex');
-    
-    // Store the token in the session
-    (req.session as any).csrfToken = token;
-    
-    // Return the token
-    res.json({ csrfToken: token });
-  });
-  
-  // Auth routes
-  apiRouter.post("/auth/register", async (req, res) => {
-    try {
-      const parseResult = insertUserSchema.safeParse(req.body);
-      
-      if (!parseResult.success) {
-        return res.status(400).json({ 
-          message: "Invalid user data", 
-          errors: parseResult.error.flatten() 
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
+}
+
+export function createRouter(): Router {
+  const router = Router();
+
+  /* ----------------------------------------------------------------- meta */
+
+  router.get(
+    '/health',
+    h(async (_req, res) => {
+      const storage = await getStorage();
+      res.json({
+        status: 'ok',
+        persistent: storage.persistent,
+        time: new Date().toISOString(),
+      });
+    }),
+  );
+
+  /* ----------------------------------------------------------------- auth */
+
+  router.post(
+    '/auth/register',
+    h(async (req, res) => {
+      const input = parseOr400(registerSchema, req.body);
+      const storage = await getStorage();
+
+      if (await storage.getUserByUsername(input.username)) {
+        throw new HttpError(409, 'That username is already taken.', {
+          fieldErrors: { username: ['That username is already taken.'] },
         });
       }
-      
-      const userData = parseResult.data;
-      
-      // Check if user already exists
-      const existingUserByUsername = await storage.getUserByUsername(userData.username);
-      if (existingUserByUsername) {
-        return res.status(400).json({ message: "Username already exists" });
+      if (await storage.getUserByEmail(input.email)) {
+        throw new HttpError(409, 'An account with that email already exists.', {
+          fieldErrors: { email: ['An account with that email already exists.'] },
+        });
       }
-      
-      const existingUserByEmail = await storage.getUserByEmail(userData.email);
-      if (existingUserByEmail) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-      
-      // Hash the password
-      const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
-      
-      // Create the user
+
       const user = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
+        username: input.username,
+        email: input.email,
+        passwordHash: await hashPassword(input.password),
+        firstName: input.firstName,
+        lastName: input.lastName,
       });
-      
-      // Init default goals for the user
-      await storage.createGoal({
-        userId: user.id,
-        type: "steps",
-        target: 10000,
-        current: 0,
-        period: "daily",
-        description: "Walk 10,000 steps every day"
+
+      // Sensible starting goals so the dashboard is never blank.
+      await storage.upsertGoal(user.id, 'steps', 10_000);
+      await storage.upsertGoal(user.id, 'calories', 600);
+      await storage.upsertGoal(user.id, 'activeMinutes', 30);
+      await storage.upsertGoal(user.id, 'sleep', 8);
+      await storage.upsertGoal(user.id, 'water', 2.5);
+
+      issueSession(res, user.id);
+      res.status(201).json({ user: toPublicUser(user) });
+    }),
+  );
+
+  router.post(
+    '/auth/login',
+    h(async (req, res) => {
+      const input = parseOr400(loginSchema, req.body);
+      const storage = await getStorage();
+      const user = await storage.getUserByUsername(input.username);
+
+      // Same response whether the user is missing or the password is wrong.
+      if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
+        throw new HttpError(401, 'Incorrect username or password.');
+      }
+
+      issueSession(res, user.id);
+      res.json({ user: toPublicUser(user) });
+    }),
+  );
+
+  /** One-click demo sign-in. No credentials required from the visitor. */
+  router.post(
+    '/auth/demo',
+    h(async (_req, res) => {
+      const storage = await getStorage();
+      const user = await storage.getUserByUsername(DEMO_USERNAME);
+      if (!user) throw new HttpError(503, 'The demo account is unavailable.');
+
+      issueSession(res, user.id);
+      res.json({
+        user: toPublicUser(user),
+        credentials: { username: DEMO_USERNAME, password: DEMO_PASSWORD },
       });
-      
-      await storage.createGoal({
-        userId: user.id,
-        type: "calories",
-        target: 500,
-        current: 0,
-        period: "daily",
-        description: "Burn 500 calories through exercise"
-      });
-      
-      await storage.createGoal({
-        userId: user.id,
-        type: "active_minutes",
-        target: 30,
-        current: 0,
-        period: "daily",
-        description: "Get 30 minutes of active exercise"
-      });
-      
-      await storage.createGoal({
-        userId: user.id,
-        type: "water",
-        target: 8,
-        current: 0,
-        period: "daily",
-        description: "Drink 8 glasses of water"
-      });
-      
-      // Generate AI recommendations for the user
-      await aiService.generateAllRecommendations(user.id);
-      
-      // Return the user without the password
-      const { password, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error registering user:", error);
-      res.status(500).json({ message: "Server error during registration" });
-    }
+    }),
+  );
+
+  router.post('/auth/logout', (_req, res) => {
+    clearSession(res);
+    res.json({ ok: true });
   });
-  
-  apiRouter.post("/auth/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
-      }
-      
-      // Get the user
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      // Check password
-      const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-      
-      if (user.password !== hashedPassword) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      // Return the user without the password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error logging in:", error);
-      res.status(500).json({ message: "Server error during login" });
-    }
+
+  /*
+   * Answers 200 with user:null when signed out. "Am I signed in?" is a
+   * question, not an error - returning 401 made every cold page load print a
+   * console error for a completely normal visitor. Protected routes still
+   * return 401 via requireAuth.
+   */
+  router.get('/auth/me', (req, res) => {
+    res.json({ user: req.user ? toPublicUser(req.user) : null });
   });
-  
-  // User routes
-  apiRouter.get("/users/:id", authenticate, authorize('users', PermissionLevel.READ), async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error getting user:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.patch("/users/:id", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const updatedUser = await storage.updateUser(userId, req.body);
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Error updating user:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Activity stats routes
-  apiRouter.get("/activity-stats/:userId", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const dateParam = req.query.date as string || new Date().toISOString().split('T')[0];
-      const date = new Date(dateParam);
-      
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ message: "Invalid date format" });
-      }
-      
-      let stats = await storage.getActivityStats(userId, date);
-      
-      // If no stats exist for the day, create empty stats
-      if (!stats) {
-        stats = await storage.createActivityStats({
-          userId,
+
+  /* ---------------------------------------------------------------- users */
+
+  router.patch(
+    '/users/me',
+    requireAuth,
+    h(async (req, res) => {
+      const patch = parseOr400(updateProfileSchema, req.body);
+      const storage = await getStorage();
+      const updated = await storage.updateUser(req.user!.id, patch);
+      if (!updated) throw new HttpError(404, 'Account not found.');
+      res.json({ user: toPublicUser(updated) });
+    }),
+  );
+
+  /* ------------------------------------------------------------- activity */
+
+  router.get(
+    '/activity',
+    requireAuth,
+    h(async (req, res) => {
+      const date = req.query.date ? parseOr400(isoDateSchema, req.query.date) : todayIso();
+      const storage = await getStorage();
+      const stat = await storage.getActivityForDate(req.user!.id, date);
+      res.json({
+        activity: stat ?? {
+          id: -1,
+          userId: req.user!.id,
           date,
           steps: 0,
           calories: 0,
           activeMinutes: 0,
-          sleep: 0,
-          water: 0
-        });
-      }
-      
-      res.json(stats);
-    } catch (error) {
-      console.error("Error getting activity stats:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.post("/activity-stats", authenticate, async (req, res) => {
-    try {
-      const parseResult = insertActivityStatsSchema.safeParse(req.body);
-      
-      if (!parseResult.success) {
-        return res.status(400).json({ 
-          message: "Invalid activity stats data", 
-          errors: parseResult.error.flatten() 
-        });
-      }
-      
-      const statsData = parseResult.data;
-      
-      // Check if stats already exist for this user and date
-      const existingStats = await storage.getActivityStats(statsData.userId, statsData.date);
-      
-      if (existingStats) {
-        // Update existing stats
-        const updatedStats = await storage.updateActivityStats(existingStats.id, statsData);
-        return res.json(updatedStats);
-      }
-      
-      // Create new stats
-      const stats = await storage.createActivityStats(statsData);
-      
-      // Update goals based on new stats
-      const goals = await storage.getGoals(statsData.userId);
-      
-      for (const goal of goals) {
-        let currentProgress = 0;
-        
-        switch (goal.type) {
-          case "steps":
-            currentProgress = statsData.steps || 0;
-            break;
-          case "calories":
-            currentProgress = statsData.calories || 0;
-            break;
-          case "active_minutes":
-            currentProgress = statsData.activeMinutes || 0;
-            break;
-          case "water":
-            currentProgress = Math.round((statsData.water || 0) * 10) / 10; // Round to 1 decimal place
-            break;
-        }
-        
-        await storage.updateGoal(goal.id, { current: currentProgress });
-      }
-      
-      // Log activity to InfluxDB (mock)
-      await logActivity(statsData.userId, 'activity_stats_update', statsData);
-      
-      res.status(201).json(stats);
-    } catch (error) {
-      console.error("Error creating activity stats:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/activity-stats/:userId/history", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const days = parseInt(req.query.days as string || "7");
-      if (isNaN(days) || days <= 0) {
-        return res.status(400).json({ message: "Invalid days parameter" });
-      }
-      
-      const stats = await storage.getActivityStatsHistory(userId, days);
-      res.json(stats);
-    } catch (error) {
-      console.error("Error getting activity stats history:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Goals routes
-  apiRouter.get("/goals/:userId", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const goals = await storage.getGoals(userId);
-      res.json(goals);
-    } catch (error) {
-      console.error("Error getting goals:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.post("/goals", authenticate, async (req, res) => {
-    try {
-      const parseResult = insertGoalSchema.safeParse(req.body);
-      
-      if (!parseResult.success) {
-        return res.status(400).json({ 
-          message: "Invalid goal data", 
-          errors: parseResult.error.flatten() 
-        });
-      }
-      
-      const goalData = parseResult.data;
-      
-      // Create the goal
-      const goal = await storage.createGoal({
-        ...goalData,
-        current: 0
+          sleepHours: 0,
+          waterLiters: 0,
+        },
       });
-      
-      res.status(201).json(goal);
-    } catch (error) {
-      console.error("Error creating goal:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.patch("/goals/:id", authenticate, async (req, res) => {
-    try {
-      const goalId = parseInt(req.params.id);
-      if (isNaN(goalId)) {
-        return res.status(400).json({ message: "Invalid goal ID" });
-      }
-      
-      const updatedGoal = await storage.updateGoal(goalId, req.body);
-      if (!updatedGoal) {
-        return res.status(404).json({ message: "Goal not found" });
-      }
-      
-      res.json(updatedGoal);
-    } catch (error) {
-      console.error("Error updating goal:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Workouts routes
-  apiRouter.get("/workouts", cacheMiddleware(300), async (req, res) => {
-    try {
-      const type = req.query.type as string | undefined;
-      const level = req.query.level as string | undefined;
-      
-      const workouts = await storage.getWorkouts(type, level);
-      res.json(workouts);
-    } catch (error) {
-      console.error("Error getting workouts:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/workouts/:id", async (req, res) => {
-    try {
-      const workoutId = parseInt(req.params.id);
-      if (isNaN(workoutId)) {
-        return res.status(400).json({ message: "Invalid workout ID" });
-      }
-      
+    }),
+  );
+
+  router.put(
+    '/activity',
+    requireAuth,
+    h(async (req, res) => {
+      const { date, ...metrics } = parseOr400(upsertActivitySchema, req.body);
+      const storage = await getStorage();
+      const activity = await storage.upsertActivity(req.user!.id, date ?? todayIso(), metrics);
+      res.json({ activity });
+    }),
+  );
+
+  router.get(
+    '/activity/history',
+    requireAuth,
+    h(async (req, res) => {
+      const { days } = parseOr400(historyQuerySchema, req.query);
+      const storage = await getStorage();
+      const history = await storage.getActivityHistory(req.user!.id, days, todayIso());
+      res.json({ history });
+    }),
+  );
+
+  /* ---------------------------------------------------------------- goals */
+
+  router.get(
+    '/goals',
+    requireAuth,
+    h(async (req, res) => {
+      const storage = await getStorage();
+      const [goals, today] = await Promise.all([
+        storage.getGoals(req.user!.id),
+        storage.getActivityForDate(req.user!.id, todayIso()),
+      ]);
+
+      const withProgress: GoalProgress[] = goals.map((goal) => {
+        const current = currentForGoal(goal.type, today);
+        return {
+          ...goal,
+          current,
+          percent: goal.target > 0 ? Math.min(100, Math.round((current / goal.target) * 100)) : 0,
+        };
+      });
+
+      res.json({ goals: withProgress });
+    }),
+  );
+
+  router.put(
+    '/goals',
+    requireAuth,
+    h(async (req, res) => {
+      const { type, target } = parseOr400(upsertGoalSchema, req.body);
+      const storage = await getStorage();
+      const goal = await storage.upsertGoal(req.user!.id, type, target);
+      res.json({ goal });
+    }),
+  );
+
+  /* ------------------------------------------------------------- workouts */
+
+  router.get(
+    '/workouts',
+    h(async (req, res) => {
+      const filter = parseOr400(workoutQuerySchema, req.query);
+      const storage = await getStorage();
+      res.json({ workouts: await storage.listWorkouts(filter) });
+    }),
+  );
+
+  router.get(
+    '/workouts/:id',
+    h(async (req, res) => {
+      const storage = await getStorage();
+      const workout = await storage.getWorkout(parseId(req.params.id));
+      if (!workout) throw new HttpError(404, 'That workout does not exist.');
+      res.json({ workout });
+    }),
+  );
+
+  /* ------------------------------------------------------------- sessions */
+
+  router.get(
+    '/sessions',
+    requireAuth,
+    h(async (req, res) => {
+      const { limit } = parseOr400(
+        z.object({ limit: z.coerce.number().int().min(1).max(50).default(10) }),
+        req.query,
+      );
+      const storage = await getStorage();
+      res.json({ sessions: await storage.listSessions(req.user!.id, limit) });
+    }),
+  );
+
+  router.post(
+    '/sessions',
+    requireAuth,
+    h(async (req, res) => {
+      const { workoutId } = parseOr400(startSessionSchema, req.body);
+      const storage = await getStorage();
       const workout = await storage.getWorkout(workoutId);
-      if (!workout) {
-        return res.status(404).json({ message: "Workout not found" });
+      if (!workout) throw new HttpError(404, 'That workout does not exist.');
+      const session = await storage.startSession(req.user!.id, workoutId);
+      res.status(201).json({ session });
+    }),
+  );
+
+  router.post(
+    '/sessions/:id/finish',
+    requireAuth,
+    h(async (req, res) => {
+      const id = parseId(req.params.id);
+      const input = parseOr400(finishSessionSchema, req.body);
+      const storage = await getStorage();
+
+      const existing = await storage.getSession(id);
+      if (!existing) throw new HttpError(404, 'That session does not exist.');
+      // Ownership check — a session id alone must not grant access.
+      if (existing.userId !== req.user!.id) {
+        throw new HttpError(403, 'That session belongs to someone else.');
       }
-      
-      res.json(workout);
-    } catch (error) {
-      console.error("Error getting workout:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Workout sessions routes
-  apiRouter.post("/workout-sessions", authenticate, async (req, res) => {
-    try {
-      const { userId, workoutId, startTime } = req.body;
-      
-      // Create workout session
-      const session = await storage.createWorkoutSession({
-        userId,
-        workoutId,
-        startTime: new Date(startTime),
+      if (existing.completed) throw new HttpError(409, 'That session is already finished.');
+
+      const workout = await storage.getWorkout(existing.workoutId);
+      const estimated = workout
+        ? Math.round(
+            (workout.caloriesBurn / Math.max(1, workout.durationMin * 60)) * input.elapsedSec,
+          )
+        : 0;
+
+      const session = await storage.finishSession(id, {
+        elapsedSec: input.elapsedSec,
+        caloriesBurned: input.caloriesBurned ?? estimated,
       });
-      
-      // Log to InfluxDB (mock)
-      await logWorkoutSession(userId, session.id, workoutId, {
-        elapsedTime: 0,
-        caloriesBurned: 0,
-        heartRate: 0,
-        completed: false
+      res.json({ session });
+    }),
+  );
+
+  /* ----------------------------------------------------------- challenges */
+
+  router.get(
+    '/challenges',
+    requireAuth,
+    h(async (req, res) => {
+      const storage = await getStorage();
+      const today = todayIso();
+      const all = await storage.listChallenges();
+
+      const summaries: ChallengeSummary[] = await Promise.all(
+        all.map(async (challenge) => {
+          const [participantCount, joined] = await Promise.all([
+            storage.countParticipants(challenge.id),
+            storage.isParticipant(challenge.id, req.user!.id),
+          ]);
+          const progress = joined ? await storage.getChallengeProgress(challenge, req.user!.id) : 0;
+          return {
+            ...challenge,
+            participantCount,
+            joined,
+            progress,
+            percent:
+              challenge.target > 0
+                ? Math.min(100, Math.round((progress / challenge.target) * 100))
+                : 0,
+            daysLeft: Math.max(0, daysBetween(today, challenge.endDate)),
+          };
+        }),
+      );
+
+      res.json({ challenges: summaries });
+    }),
+  );
+
+  router.get(
+    '/challenges/:id/leaderboard',
+    requireAuth,
+    h(async (req, res) => {
+      const id = parseId(req.params.id);
+      const storage = await getStorage();
+      const challenge = await storage.getChallenge(id);
+      if (!challenge) throw new HttpError(404, 'That challenge does not exist.');
+      res.json({ challenge, leaderboard: await storage.getLeaderboard(id) });
+    }),
+  );
+
+  router.post(
+    '/challenges/:id/join',
+    requireAuth,
+    h(async (req, res) => {
+      const id = parseId(req.params.id);
+      const storage = await getStorage();
+      const challenge = await storage.getChallenge(id);
+      if (!challenge) throw new HttpError(404, 'That challenge does not exist.');
+      await storage.joinChallenge(id, req.user!.id);
+      res.status(201).json({ ok: true });
+    }),
+  );
+
+  router.delete(
+    '/challenges/:id/join',
+    requireAuth,
+    h(async (req, res) => {
+      const id = parseId(req.params.id);
+      const storage = await getStorage();
+      await storage.leaveChallenge(id, req.user!.id);
+      res.json({ ok: true });
+    }),
+  );
+
+  /* -------------------------------------------------------------- insights */
+
+  router.get(
+    '/insights',
+    requireAuth,
+    h(async (req, res) => {
+      const storage = await getStorage();
+      const today = todayIso();
+      const [history, goals, recentWorkouts] = await Promise.all([
+        storage.getActivityHistory(req.user!.id, 14, today),
+        storage.getGoals(req.user!.id),
+        storage.countCompletedSessions(req.user!.id, addDays(today, -13), today),
+      ]);
+
+      res.json({
+        insights: generateInsights({ history, goals, recentWorkouts }),
+        generatedAt: new Date().toISOString(),
       });
-      
-      res.status(201).json(session);
-    } catch (error) {
-      console.error("Error creating workout session:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/workout-sessions/:userId", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const sessions = await storage.getWorkoutSessions(userId);
-      res.json(sessions);
-    } catch (error) {
-      console.error("Error getting workout sessions:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.patch("/workout-sessions/:id", authenticate, async (req, res) => {
-    try {
-      const sessionId = parseInt(req.params.id);
-      if (isNaN(sessionId)) {
-        return res.status(400).json({ message: "Invalid session ID" });
-      }
-      
-      const updatedSession = await storage.updateWorkoutSession(sessionId, req.body);
-      if (!updatedSession) {
-        return res.status(404).json({ message: "Workout session not found" });
-      }
-      
-      // If session is completed, update activity stats
-      if (updatedSession.completed && updatedSession.endTime) {
-        const workout = await storage.getWorkout(updatedSession.workoutId);
-        if (workout) {
-          const today = new Date();
-          let stats = await storage.getActivityStats(updatedSession.userId, today);
-          
-          if (stats) {
-            await storage.updateActivityStats(stats.id, {
-              calories: (stats.calories || 0) + (updatedSession.caloriesBurned || 0),
-              activeMinutes: (stats.activeMinutes || 0) + Math.floor((updatedSession.elapsedTime || 0) / 60)
-            });
-          } else {
-            await storage.createActivityStats({
-              userId: updatedSession.userId,
-              date: today,
-              calories: updatedSession.caloriesBurned || 0,
-              activeMinutes: Math.floor((updatedSession.elapsedTime || 0) / 60),
-              steps: 0,
-              sleep: 0,
-              water: 0
-            });
-          }
-          
-          // Log to InfluxDB (mock)
-          await logWorkoutSession(updatedSession.userId, sessionId, updatedSession.workoutId, {
-            elapsedTime: updatedSession.elapsedTime,
-            caloriesBurned: updatedSession.caloriesBurned,
-            heartRate: updatedSession.heartRate,
-            completed: true
-          });
-        }
-      }
-      
-      res.json(updatedSession);
-    } catch (error) {
-      console.error("Error updating workout session:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Challenges routes
-  apiRouter.get("/challenges", async (req, res) => {
-    try {
-      const challenges = await storage.getChallenges();
-      res.json(challenges);
-    } catch (error) {
-      console.error("Error getting challenges:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/challenges/:id", async (req, res) => {
-    try {
-      const challengeId = parseInt(req.params.id);
-      if (isNaN(challengeId)) {
-        return res.status(400).json({ message: "Invalid challenge ID" });
-      }
-      
-      const challenge = await storage.getChallenge(challengeId);
-      if (!challenge) {
-        return res.status(404).json({ message: "Challenge not found" });
-      }
-      
-      res.json(challenge);
-    } catch (error) {
-      console.error("Error getting challenge:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.post("/challenges", authenticate, async (req, res) => {
-    try {
-      const { name, description, type, target, startDate, endDate, createdBy } = req.body;
-      
-      // Create challenge
-      const challenge = await storage.createChallenge({
-        name,
-        description,
-        type,
-        target,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        createdBy
-      });
-      
-      res.status(201).json(challenge);
-    } catch (error) {
-      console.error("Error creating challenge:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/challenges/:id/participants", async (req, res) => {
-    try {
-      const challengeId = parseInt(req.params.id);
-      if (isNaN(challengeId)) {
-        return res.status(400).json({ message: "Invalid challenge ID" });
-      }
-      
-      const participants = await storage.getChallengeParticipants(challengeId);
-      res.json(participants);
-    } catch (error) {
-      console.error("Error getting challenge participants:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.post("/challenges/:id/join", authenticate, async (req, res) => {
-    try {
-      const challengeId = parseInt(req.params.id);
-      if (isNaN(challengeId)) {
-        return res.status(400).json({ message: "Invalid challenge ID" });
-      }
-      
-      const { userId } = req.body;
-      
-      // Join challenge
-      const participant = await storage.joinChallenge({
-        userId,
-        challengeId,
-        currentProgress: 0,
-        joinDate: new Date()
-      });
-      
-      res.status(201).json(participant);
-    } catch (error) {
-      console.error("Error joining challenge:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.patch("/challenges/:challengeId/progress", authenticate, async (req, res) => {
-    try {
-      const challengeId = parseInt(req.params.challengeId);
-      if (isNaN(challengeId)) {
-        return res.status(400).json({ message: "Invalid challenge ID" });
-      }
-      
-      const { userId, progress } = req.body;
-      
-      // Update progress
-      const updatedParticipant = await storage.updateChallengeProgress(userId, challengeId, progress);
-      if (!updatedParticipant) {
-        return res.status(404).json({ message: "Challenge participation not found" });
-      }
-      
-      res.json(updatedParticipant);
-    } catch (error) {
-      console.error("Error updating challenge progress:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.get("/users/:userId/challenges", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const challenges = await storage.getUserChallenges(userId);
-      res.json(challenges);
-    } catch (error) {
-      console.error("Error getting user challenges:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Recommendations routes
-  apiRouter.get("/recommendations/:userId", authenticate, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const type = req.query.type as string | undefined;
-      
-      const recommendations = await storage.getRecommendations(userId, type);
-      res.json(recommendations);
-    } catch (error) {
-      console.error("Error getting recommendations:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  apiRouter.post("/recommendations/:id/feedback", authenticate, async (req, res) => {
-    try {
-      const recommendationId = parseInt(req.params.id);
-      if (isNaN(recommendationId)) {
-        return res.status(400).json({ message: "Invalid recommendation ID" });
-      }
-      
-      const { feedback } = req.body;
-      
-      // Update feedback
-      const updatedRecommendation = await storage.updateRecommendationFeedback(recommendationId, feedback);
-      if (!updatedRecommendation) {
-        return res.status(404).json({ message: "Recommendation not found" });
-      }
-      
-      res.json(updatedRecommendation);
-    } catch (error) {
-      console.error("Error updating recommendation feedback:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // AI-generated workout plan
-  apiRouter.post("/workout-plans", authenticate, async (req, res) => {
-    try {
-      const { userId, preferences } = req.body;
-      
-      // Generate workout plan
-      const plan = await generateWorkoutPlan(userId, preferences);
-      res.json(plan);
-    } catch (error) {
-      console.error("Error generating workout plan:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-  
-  // Mount API router
-  app.use("/api", apiRouter);
-  
-  // Create HTTP server
-  const server = createServer(app);
-  
-  // Create WebSocket server
-  const wss = new WebSocketServer({ server, path: '/ws' });
-  
-  // Handle WebSocket connections
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
-    
-    // Send welcome message
-    ws.send(JSON.stringify({
-      type: 'connection',
-      message: 'Connected to HealthHubPro WebSocket server'
-    }));
-    
-    // Handle messages
-    ws.on('message', (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('Received message:', data);
-        
-        // Echo back the message for now
-        ws.send(JSON.stringify({
-          type: 'echo',
-          data
-        }));
-      } catch (error) {
-        console.error('Error processing WebSocket message:', error);
-      }
-    });
-    
-    // Handle disconnection
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
-    });
-  });
-  
-  return server;
+    }),
+  );
+
+  return router;
 }

@@ -1,149 +1,226 @@
+import { useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
+  Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ActivityStats } from "@/types";
+} from 'recharts';
+import type { ActivityStat, GoalProgress } from '@shared/schema';
+import { Button } from '@/components/ui/button';
+import { formatDecimal, formatNumber, formatShortDate, formatWeekday } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return days[date.getDay()];
-};
+type MetricKey = 'steps' | 'calories' | 'activeMinutes' | 'sleepHours' | 'waterLiters';
 
-type DataType = 'steps' | 'calories' | 'activeMinutes';
+const METRICS: Array<{
+  key: MetricKey;
+  label: string;
+  goalType: GoalProgress['type'];
+  unit: string;
+  decimal?: boolean;
+}> = [
+  { key: 'steps', label: 'Steps', goalType: 'steps', unit: '' },
+  { key: 'calories', label: 'Calories', goalType: 'calories', unit: 'kcal' },
+  { key: 'activeMinutes', label: 'Active', goalType: 'activeMinutes', unit: 'min' },
+  { key: 'sleepHours', label: 'Sleep', goalType: 'sleep', unit: 'h', decimal: true },
+  { key: 'waterLiters', label: 'Water', goalType: 'water', unit: 'L', decimal: true },
+];
 
-interface ActivityChartProps {
-  data: ActivityStats[];
-  timeframe: 'day' | 'week' | 'month';
-  onTimeframeChange: (timeframe: 'day' | 'week' | 'month') => void;
-}
+type Row = { date: string; label: string; value: number };
 
-const ActivityChart = ({ data, timeframe, onTimeframeChange }: ActivityChartProps) => {
-  const [dataType, setDataType] = useState<DataType>('steps');
-  
-  const formattedData = data.map((item) => ({
-    name: formatDate(item.date),
-    steps: item.steps,
-    calories: item.calories,
-    activeMinutes: item.activeMinutes,
-  }));
-  
-  const getMaxValue = () => {
-    if (dataType === 'steps') {
-      return Math.max(...formattedData.map(d => d.steps), 10000);
-    } else if (dataType === 'calories') {
-      return Math.max(...formattedData.map(d => d.calories), 1000);
-    } else {
-      return Math.max(...formattedData.map(d => d.activeMinutes), 120);
-    }
-  };
-  
+function ChartTooltip({
+  active,
+  payload,
+  metric,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Row }>;
+  metric: (typeof METRICS)[number];
+}) {
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
+
   return (
-    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-lg">Activity Trends</h3>
-        
-        <div className="flex space-x-2 text-sm">
-          <Button 
-            variant={dataType === 'steps' ? 'default' : 'outline'} 
-            size="sm" 
-            className={`rounded-full ${dataType === 'steps' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-100 text-gray-500 hover:text-gray-600'}`} 
-            onClick={() => setDataType('steps')}
-          >
-            Steps
-          </Button>
-          <Button 
-            variant={dataType === 'calories' ? 'default' : 'outline'} 
-            size="sm" 
-            className={`rounded-full ${dataType === 'calories' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-100 text-gray-500 hover:text-gray-600'}`} 
-            onClick={() => setDataType('calories')}
-          >
-            Calories
-          </Button>
-          <Button 
-            variant={dataType === 'activeMinutes' ? 'default' : 'outline'} 
-            size="sm" 
-            className={`rounded-full ${dataType === 'activeMinutes' ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-100 text-gray-500 hover:text-gray-600'}`} 
-            onClick={() => setDataType('activeMinutes')}
-          >
-            Active Minutes
-          </Button>
-        </div>
-      </div>
-      
-      <div className="flex mb-4 justify-end">
-        <div className="inline-flex rounded-md shadow-sm" role="group">
-          <Button 
-            variant={timeframe === 'day' ? 'default' : 'outline'} 
-            className={`px-4 py-2 text-sm rounded-l-lg ${timeframe === 'day' ? 'bg-blue-500' : 'bg-white text-blue-500'}`}
-            onClick={() => onTimeframeChange('day')}
-          >
-            Day
-          </Button>
-          <Button 
-            variant={timeframe === 'week' ? 'default' : 'outline'} 
-            className={`px-4 py-2 text-sm ${timeframe === 'week' ? 'bg-blue-500' : 'bg-white text-blue-500'}`}
-            onClick={() => onTimeframeChange('week')}
-          >
-            Week
-          </Button>
-          <Button 
-            variant={timeframe === 'month' ? 'default' : 'outline'} 
-            className={`px-4 py-2 text-sm rounded-r-lg ${timeframe === 'month' ? 'bg-blue-500' : 'bg-white text-blue-500'}`}
-            onClick={() => onTimeframeChange('month')}
-          >
-            Month
-          </Button>
-        </div>
-      </div>
-      
-      <div className="chart-container h-64 w-full bg-white rounded-lg overflow-hidden hover:shadow-md transition-all">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={formattedData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" />
-            <YAxis 
-              domain={[0, getMaxValue()]} 
-              tickFormatter={(value) => {
-                if (dataType === 'steps' && value >= 1000) {
-                  return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
-                }
-                return value.toString();
-              }}
-            />
-            <Tooltip 
-              formatter={(value, name) => {
-                if (name === 'steps') return [`${value} steps`, 'Steps'];
-                if (name === 'calories') return [`${value} cal`, 'Calories'];
-                if (name === 'activeMinutes') return [`${value} min`, 'Active Minutes'];
-                return [value, name];
-              }}
-            />
-            <Bar 
-              dataKey={dataType} 
-              fill={
-                dataType === 'steps' 
-                  ? '#3B82F6' 
-                  : dataType === 'calories' 
-                    ? '#F59E0B' 
-                    : '#10B981'
-              } 
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+    <div className="rounded-md border border-border bg-surface px-3 py-2 shadow-xl">
+      <p className="text-2xs uppercase text-text-subtle">{formatShortDate(row.date)}</p>
+      <p className="numeric mt-0.5 text-sm font-semibold text-text">
+        {metric.decimal ? formatDecimal(row.value) : formatNumber(row.value)}
+        {metric.unit ? <span className="ml-1 text-xs text-text-muted">{metric.unit}</span> : null}
+      </p>
     </div>
   );
-};
+}
 
-export default ActivityChart;
+export function ActivityChart({
+  history,
+  goals,
+  days,
+  onDaysChange,
+}: {
+  history: ActivityStat[];
+  goals: GoalProgress[];
+  days: number;
+  onDaysChange: (days: number) => void;
+}) {
+  const [metricKey, setMetricKey] = useState<MetricKey>('steps');
+  const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0]!;
+  const goalTarget = goals.find((g) => g.type === metric.goalType)?.target;
+
+  const rows = useMemo<Row[]>(
+    () =>
+      history.map((entry) => ({
+        date: entry.date,
+        label: days <= 7 ? formatWeekday(entry.date) : formatShortDate(entry.date),
+        value: entry[metric.key],
+      })),
+    [history, metric.key, days],
+  );
+
+  const peak = useMemo(() => Math.max(...rows.map((r) => r.value), 0), [rows]);
+  const allZero = peak === 0;
+
+  return (
+    <div>
+      {/* Filters sit in one row above the plot. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Metric">
+          {METRICS.map((m) => (
+            <Button
+              key={m.key}
+              size="sm"
+              variant={m.key === metricKey ? 'secondary' : 'ghost'}
+              aria-pressed={m.key === metricKey}
+              onClick={() => setMetricKey(m.key)}
+            >
+              {m.label}
+            </Button>
+          ))}
+        </div>
+        <div className="ml-auto flex gap-1" role="group" aria-label="Date range">
+          {[7, 14, 30].map((d) => (
+            <Button
+              key={d}
+              size="sm"
+              variant={d === days ? 'secondary' : 'ghost'}
+              aria-pressed={d === days}
+              onClick={() => onDaysChange(d)}
+            >
+              {d}d
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {allZero ? (
+        <p className="flex h-64 items-center justify-center text-sm text-text-muted">
+          No {metric.label.toLowerCase()} recorded in this range yet.
+        </p>
+      ) : (
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={rows}
+              margin={{ top: 8, right: 4, bottom: 0, left: -16 }}
+              barCategoryGap="22%"
+            >
+              <CartesianGrid stroke="hsl(var(--chart-grid))" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: 'hsl(var(--text-subtle))', fontSize: 11 }}
+                interval="preserveStartEnd"
+                minTickGap={8}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={52}
+                tick={{ fill: 'hsl(var(--text-subtle))', fontSize: 11 }}
+                tickFormatter={(v: number) =>
+                  metric.decimal
+                    ? formatDecimal(v, 0)
+                    : v >= 1000
+                      ? `${Math.round(v / 1000)}k`
+                      : String(v)
+                }
+              />
+              <Tooltip
+                cursor={{ fill: 'hsl(var(--surface-raised))' }}
+                content={<ChartTooltip metric={metric} />}
+              />
+              {goalTarget ? (
+                <ReferenceLine
+                  y={goalTarget}
+                  stroke="hsl(var(--text-subtle))"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: 'Goal',
+                    position: 'right',
+                    fill: 'hsl(var(--text-subtle))',
+                    fontSize: 11,
+                  }}
+                />
+              ) : null}
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                {rows.map((row) => (
+                  <Cell
+                    key={row.date}
+                    fill="hsl(var(--chart-1))"
+                    /* The peak day is the only mark that earns emphasis. */
+                    fillOpacity={row.value === peak ? 1 : 0.62}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Same numbers as a table: identity is never carried by colour alone. */}
+      <details className="mt-3">
+        <summary className="cursor-pointer text-xs text-text-subtle hover:text-text-muted">
+          View as table
+        </summary>
+        <div className="mt-2 max-h-56 overflow-auto rounded-md border border-border">
+          <table className="w-full text-sm">
+            <caption className="sr-only">
+              {metric.label} for the last {days} days
+            </caption>
+            <thead className="sticky top-0 bg-surface-raised">
+              <tr>
+                <th scope="col" className="px-3 py-2 text-left font-medium text-text-muted">
+                  Date
+                </th>
+                <th scope="col" className="px-3 py-2 text-right font-medium text-text-muted">
+                  {metric.label}
+                  {metric.unit ? ` (${metric.unit})` : ''}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.date} className="border-t border-border">
+                  <td className="px-3 py-1.5 text-text-muted">{formatShortDate(row.date)}</td>
+                  <td
+                    className={cn(
+                      'numeric px-3 py-1.5 text-right',
+                      row.value === peak && 'text-accent',
+                    )}
+                  >
+                    {metric.decimal ? formatDecimal(row.value) : formatNumber(row.value)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  );
+}

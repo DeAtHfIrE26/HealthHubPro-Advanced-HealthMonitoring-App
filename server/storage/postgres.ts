@@ -1,0 +1,517 @@
+/**
+ * Postgres-backed storage via Drizzle + Neon serverless.
+ *
+ * Used automatically when DATABASE_URL is set. Schema is created on init so a
+ * fresh Neon database works with no manual migration step, and seeding is
+ * idempotent — it only runs when the users table is empty.
+ */
+import { neon } from '@neondatabase/serverless';
+import { and, asc, between, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { drizzle, type NeonHttpDatabase } from 'drizzle-orm/neon-http';
+import type {
+  ActivityStat,
+  Challenge,
+  Goal,
+  GoalType,
+  LeaderboardRow,
+  User,
+  Workout,
+  WorkoutSession,
+} from '../../shared/schema';
+import {
+  activityStats,
+  challengeParticipants,
+  challenges,
+  goals,
+  users,
+  workoutSessions,
+  workouts,
+} from '../../shared/schema';
+import { addDays, buildSeed, todayIso } from './seed';
+import type {
+  ActivityPatch,
+  NewUser,
+  SessionWithWorkout,
+  Storage,
+  UserPatch,
+  WorkoutFilter,
+} from './types';
+
+export class PostgresStorage implements Storage {
+  readonly persistent = true;
+
+  private readonly db: NeonHttpDatabase;
+  private initialised = false;
+
+  constructor(connectionString: string) {
+    this.db = drizzle(neon(connectionString));
+  }
+
+  async init(): Promise<void> {
+    if (this.initialised) return;
+    this.initialised = true;
+
+    await this.createSchema();
+
+    const [existing] = await this.db.select({ n: count() }).from(users);
+    if ((existing?.n ?? 0) > 0) return;
+
+    await this.seed();
+  }
+
+  /**
+   * Created with raw DDL rather than drizzle-kit so a fresh database works on
+   * first boot without a separate migration step. `IF NOT EXISTS` throughout
+   * keeps it safe to run on every cold start.
+   */
+  private async createSchema(): Promise<void> {
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id serial PRIMARY KEY,
+        username varchar(50) NOT NULL UNIQUE,
+        email varchar(255) NOT NULL UNIQUE,
+        password_hash text NOT NULL,
+        first_name varchar(50) NOT NULL,
+        last_name varchar(50) NOT NULL,
+        height_cm integer,
+        weight_kg real,
+        age integer,
+        location varchar(120),
+        created_at timestamptz NOT NULL DEFAULT now()
+      )`,
+      `CREATE TABLE IF NOT EXISTS workouts (
+        id serial PRIMARY KEY,
+        name varchar(100) NOT NULL,
+        type varchar(20) NOT NULL,
+        description text NOT NULL DEFAULT '',
+        difficulty varchar(20) NOT NULL,
+        duration_min integer NOT NULL,
+        calories_burn integer NOT NULL,
+        exercises jsonb NOT NULL DEFAULT '[]'::jsonb
+      )`,
+      `CREATE TABLE IF NOT EXISTS activity_stats (
+        id serial PRIMARY KEY,
+        user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date date NOT NULL,
+        steps integer NOT NULL DEFAULT 0,
+        calories integer NOT NULL DEFAULT 0,
+        active_minutes integer NOT NULL DEFAULT 0,
+        sleep_hours real NOT NULL DEFAULT 0,
+        water_liters real NOT NULL DEFAULT 0,
+        CONSTRAINT activity_stats_user_date UNIQUE (user_id, date)
+      )`,
+      `CREATE INDEX IF NOT EXISTS activity_stats_user_idx ON activity_stats (user_id)`,
+      `CREATE TABLE IF NOT EXISTS goals (
+        id serial PRIMARY KEY,
+        user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type varchar(20) NOT NULL,
+        target real NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT goals_user_type UNIQUE (user_id, type)
+      )`,
+      `CREATE TABLE IF NOT EXISTS workout_sessions (
+        id serial PRIMARY KEY,
+        user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        workout_id integer NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+        started_at timestamptz NOT NULL DEFAULT now(),
+        completed_at timestamptz,
+        elapsed_sec integer NOT NULL DEFAULT 0,
+        calories_burned integer NOT NULL DEFAULT 0,
+        completed boolean NOT NULL DEFAULT false
+      )`,
+      `CREATE INDEX IF NOT EXISTS workout_sessions_user_idx ON workout_sessions (user_id)`,
+      `CREATE TABLE IF NOT EXISTS challenges (
+        id serial PRIMARY KEY,
+        name varchar(100) NOT NULL,
+        description text NOT NULL DEFAULT '',
+        type varchar(20) NOT NULL,
+        target real NOT NULL,
+        start_date date NOT NULL,
+        end_date date NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS challenge_participants (
+        id serial PRIMARY KEY,
+        challenge_id integer NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+        user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        joined_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT challenge_participants_unique UNIQUE (challenge_id, user_id)
+      )`,
+    ];
+
+    for (const statement of statements) {
+      await this.db.execute(sql.raw(statement));
+    }
+  }
+
+  private async seed(): Promise<void> {
+    const today = todayIso();
+    const data = await buildSeed(today);
+
+    const insertedUsers = await this.db
+      .insert(users)
+      .values(
+        data.users.map((u) => ({
+          username: u.username,
+          email: u.email,
+          passwordHash: u.passwordHash,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          heightCm: u.heightCm,
+          weightKg: u.weightKg,
+          age: u.age,
+          location: u.location,
+        })),
+      )
+      .returning();
+
+    const insertedWorkouts = await this.db.insert(workouts).values(data.workouts).returning();
+    const insertedChallenges = await this.db.insert(challenges).values(data.challenges).returning();
+
+    const userByName = new Map(insertedUsers.map((u) => [u.username, u]));
+    const workoutByName = new Map(insertedWorkouts.map((w) => [w.name, w]));
+    const challengeByName = new Map(insertedChallenges.map((c) => [c.name, c]));
+
+    const activityRows = data.activity.flatMap((a) => {
+      const user = userByName.get(a.username);
+      return user
+        ? [
+            {
+              userId: user.id,
+              date: a.date,
+              steps: a.steps,
+              calories: a.calories,
+              activeMinutes: a.activeMinutes,
+              sleepHours: a.sleepHours,
+              waterLiters: a.waterLiters,
+            },
+          ]
+        : [];
+    });
+
+    // Neon's HTTP driver caps statement size, so insert activity in batches.
+    const BATCH = 100;
+    for (let i = 0; i < activityRows.length; i += BATCH) {
+      await this.db.insert(activityStats).values(activityRows.slice(i, i + BATCH));
+    }
+
+    const goalRows = data.goals.flatMap((g) => {
+      const user = userByName.get(g.username);
+      return user ? [{ userId: user.id, type: g.type, target: g.target }] : [];
+    });
+    if (goalRows.length) await this.db.insert(goals).values(goalRows);
+
+    const participantRows = data.participants.flatMap((p) => {
+      const user = userByName.get(p.username);
+      const challenge = challengeByName.get(p.challengeName);
+      return user && challenge ? [{ challengeId: challenge.id, userId: user.id }] : [];
+    });
+    if (participantRows.length) await this.db.insert(challengeParticipants).values(participantRows);
+
+    const sessionRows = data.sessions.flatMap((s) => {
+      const user = userByName.get(s.username);
+      const workout = workoutByName.get(s.workoutName);
+      if (!user || !workout) return [];
+      const startedAt = new Date(`${addDays(today, -s.daysAgo)}T07:30:00Z`);
+      return [
+        {
+          userId: user.id,
+          workoutId: workout.id,
+          startedAt,
+          completedAt: new Date(startedAt.getTime() + s.elapsedSec * 1000),
+          elapsedSec: s.elapsedSec,
+          caloriesBurned: s.caloriesBurned,
+          completed: true,
+        },
+      ];
+    });
+    if (sessionRows.length) await this.db.insert(workoutSessions).values(sessionRows);
+  }
+
+  /* ---------------------------------------------------------------- users */
+
+  async getUserById(id: number): Promise<User | null> {
+    const [row] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  async getUserByUsername(username: string): Promise<User | null> {
+    const [row] = await this.db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.username}) = lower(${username})`)
+      .limit(1);
+    return row ?? null;
+  }
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    const [row] = await this.db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = lower(${email})`)
+      .limit(1);
+    return row ?? null;
+  }
+
+  async createUser(data: NewUser): Promise<User> {
+    const [row] = await this.db.insert(users).values(data).returning();
+    if (!row) throw new Error('Failed to create user');
+    return row;
+  }
+
+  async updateUser(id: number, patch: UserPatch): Promise<User | null> {
+    if (Object.keys(patch).length === 0) return this.getUserById(id);
+    const [row] = await this.db.update(users).set(patch).where(eq(users.id, id)).returning();
+    return row ?? null;
+  }
+
+  /* ------------------------------------------------------------- activity */
+
+  async getActivityForDate(userId: number, date: string): Promise<ActivityStat | null> {
+    const [row] = await this.db
+      .select()
+      .from(activityStats)
+      .where(and(eq(activityStats.userId, userId), eq(activityStats.date, date)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async upsertActivity(userId: number, date: string, patch: ActivityPatch): Promise<ActivityStat> {
+    const [row] = await this.db
+      .insert(activityStats)
+      .values({
+        userId,
+        date,
+        steps: patch.steps ?? 0,
+        calories: patch.calories ?? 0,
+        activeMinutes: patch.activeMinutes ?? 0,
+        sleepHours: patch.sleepHours ?? 0,
+        waterLiters: patch.waterLiters ?? 0,
+      })
+      .onConflictDoUpdate({
+        target: [activityStats.userId, activityStats.date],
+        set: patch,
+      })
+      .returning();
+    if (!row) throw new Error('Failed to upsert activity');
+    return row;
+  }
+
+  async getActivityHistory(userId: number, days: number, endDate: string): Promise<ActivityStat[]> {
+    const startDate = addDays(endDate, -(days - 1));
+    const rows = await this.db
+      .select()
+      .from(activityStats)
+      .where(and(eq(activityStats.userId, userId), between(activityStats.date, startDate, endDate)))
+      .orderBy(asc(activityStats.date));
+
+    const byDate = new Map(rows.map((r) => [r.date, r]));
+    const out: ActivityStat[] = [];
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const date = addDays(endDate, -i);
+      out.push(
+        byDate.get(date) ?? {
+          id: -1,
+          userId,
+          date,
+          steps: 0,
+          calories: 0,
+          activeMinutes: 0,
+          sleepHours: 0,
+          waterLiters: 0,
+        },
+      );
+    }
+    return out;
+  }
+
+  /* ---------------------------------------------------------------- goals */
+
+  async getGoals(userId: number): Promise<Goal[]> {
+    return this.db.select().from(goals).where(eq(goals.userId, userId)).orderBy(asc(goals.id));
+  }
+
+  async upsertGoal(userId: number, type: GoalType, target: number): Promise<Goal> {
+    const [row] = await this.db
+      .insert(goals)
+      .values({ userId, type, target })
+      .onConflictDoUpdate({ target: [goals.userId, goals.type], set: { target } })
+      .returning();
+    if (!row) throw new Error('Failed to upsert goal');
+    return row;
+  }
+
+  /* ------------------------------------------------------------- workouts */
+
+  async listWorkouts(filter: WorkoutFilter): Promise<Workout[]> {
+    const conditions = [];
+    if (filter.type) conditions.push(eq(workouts.type, filter.type));
+    if (filter.difficulty) conditions.push(eq(workouts.difficulty, filter.difficulty));
+    if (filter.q) {
+      const pattern = `%${filter.q}%`;
+      const match = or(ilike(workouts.name, pattern), ilike(workouts.description, pattern));
+      if (match) conditions.push(match);
+    }
+    const query = this.db.select().from(workouts).orderBy(asc(workouts.id));
+    return conditions.length ? query.where(and(...conditions)) : query;
+  }
+
+  async getWorkout(id: number): Promise<Workout | null> {
+    const [row] = await this.db.select().from(workouts).where(eq(workouts.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  /* ------------------------------------------------------------- sessions */
+
+  async startSession(userId: number, workoutId: number): Promise<WorkoutSession> {
+    const [row] = await this.db.insert(workoutSessions).values({ userId, workoutId }).returning();
+    if (!row) throw new Error('Failed to start session');
+    return row;
+  }
+
+  async getSession(id: number): Promise<WorkoutSession | null> {
+    const [row] = await this.db
+      .select()
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async finishSession(
+    id: number,
+    data: { elapsedSec: number; caloriesBurned: number },
+  ): Promise<WorkoutSession | null> {
+    const [row] = await this.db
+      .update(workoutSessions)
+      .set({ ...data, completed: true, completedAt: new Date() })
+      .where(eq(workoutSessions.id, id))
+      .returning();
+    return row ?? null;
+  }
+
+  async listSessions(userId: number, limit: number): Promise<SessionWithWorkout[]> {
+    const rows = await this.db
+      .select({ session: workoutSessions, workout: workouts })
+      .from(workoutSessions)
+      .innerJoin(workouts, eq(workouts.id, workoutSessions.workoutId))
+      .where(eq(workoutSessions.userId, userId))
+      .orderBy(desc(workoutSessions.startedAt))
+      .limit(limit);
+    return rows.map((r) => ({ ...r.session, workout: r.workout }));
+  }
+
+  async countCompletedSessions(userId: number, from: string, to: string): Promise<number> {
+    const [row] = await this.db
+      .select({ n: count() })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.completed, true),
+          sql`${workoutSessions.completedAt}::date BETWEEN ${from}::date AND ${to}::date`,
+        ),
+      );
+    return row?.n ?? 0;
+  }
+
+  /* ----------------------------------------------------------- challenges */
+
+  async listChallenges(): Promise<Challenge[]> {
+    return this.db.select().from(challenges).orderBy(asc(challenges.id));
+  }
+
+  async getChallenge(id: number): Promise<Challenge | null> {
+    const [row] = await this.db.select().from(challenges).where(eq(challenges.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  async isParticipant(challengeId: number, userId: number): Promise<boolean> {
+    const [row] = await this.db
+      .select({ n: count() })
+      .from(challengeParticipants)
+      .where(
+        and(
+          eq(challengeParticipants.challengeId, challengeId),
+          eq(challengeParticipants.userId, userId),
+        ),
+      );
+    return (row?.n ?? 0) > 0;
+  }
+
+  async joinChallenge(challengeId: number, userId: number): Promise<void> {
+    await this.db
+      .insert(challengeParticipants)
+      .values({ challengeId, userId })
+      .onConflictDoNothing();
+  }
+
+  async leaveChallenge(challengeId: number, userId: number): Promise<void> {
+    await this.db
+      .delete(challengeParticipants)
+      .where(
+        and(
+          eq(challengeParticipants.challengeId, challengeId),
+          eq(challengeParticipants.userId, userId),
+        ),
+      );
+  }
+
+  async countParticipants(challengeId: number): Promise<number> {
+    const [row] = await this.db
+      .select({ n: count() })
+      .from(challengeParticipants)
+      .where(eq(challengeParticipants.challengeId, challengeId));
+    return row?.n ?? 0;
+  }
+
+  async getChallengeProgress(challenge: Challenge, userId: number): Promise<number> {
+    if (challenge.type === 'workouts') {
+      return this.countCompletedSessions(userId, challenge.startDate, challenge.endDate);
+    }
+    const column =
+      challenge.type === 'steps'
+        ? activityStats.steps
+        : challenge.type === 'calories'
+          ? activityStats.calories
+          : activityStats.activeMinutes;
+
+    const [row] = await this.db
+      .select({ total: sql<number>`coalesce(sum(${column}), 0)::float8` })
+      .from(activityStats)
+      .where(
+        and(
+          eq(activityStats.userId, userId),
+          between(activityStats.date, challenge.startDate, challenge.endDate),
+        ),
+      );
+    return row?.total ?? 0;
+  }
+
+  async getLeaderboard(challengeId: number): Promise<LeaderboardRow[]> {
+    const challenge = await this.getChallenge(challengeId);
+    if (!challenge) return [];
+
+    const participants = await this.db
+      .select({ user: users })
+      .from(challengeParticipants)
+      .innerJoin(users, eq(users.id, challengeParticipants.userId))
+      .where(eq(challengeParticipants.challengeId, challengeId));
+
+    const rows = await Promise.all(
+      participants.map(async ({ user }) => {
+        const progress = await this.getChallengeProgress(challenge, user.id);
+        return {
+          userId: user.id,
+          name: `${user.firstName} ${user.lastName}`,
+          username: user.username,
+          progress,
+          percent: Math.min(100, Math.round((progress / challenge.target) * 100)),
+        };
+      }),
+    );
+
+    return rows
+      .sort((a, b) => b.progress - a.progress || a.username.localeCompare(b.username))
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+  }
+}

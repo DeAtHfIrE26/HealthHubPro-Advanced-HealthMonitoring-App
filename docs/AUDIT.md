@@ -27,18 +27,18 @@ That is a coherent and genuinely demo-able product. **None of it currently runs.
 
 ## 2. Stack inventory
 
-| Layer | What's declared | Notes |
-|---|---|---|
-| Language | TypeScript 5.6.3 | `strict: true`, `module: NodeNext` |
-| Runtime | Node (local: v22.22.2) | No `.nvmrc`, no `engines` field |
-| Package manager | npm, `package-lock.json` v3 present (1.05 MB) | lockfile is in sync with `package.json` |
-| Module system | ESM (`"type": "module"`) | This is the root cause of several breakages below |
-| Frontend | React 18.3, Vite 5.4, Tailwind 3.4, shadcn/Radix (33 UI components), TanStack Query 5, wouter, Recharts, axios | **Entirely orphaned — not in the build graph** |
-| Backend | Express 4.21, `ws` 8.18, Zod 3.23, helmet, cors, compression, morgan, express-rate-limit, express-session | Boots nowhere |
-| Data | Three competing stacks: Drizzle+Neon (`server/db.ts`), Sequelize (`server/db/`), and an in-memory mock (`server/storage.ts`) | Only the mock is wired to routes |
-| Tests | Jest 29 + ts-jest + Testing Library; Cypress 13; Artillery; "k6" | Jest fails to start; Cypress specs target non-existent pages |
-| Ops (aspirational) | k8s manifests, nginx LB config, Prometheus/Grafana/Sentry YAML | No cluster, no Dockerfile, no CI workflow |
-| Deps | 79 runtime + 40 dev = 119 direct | `node_modules` = **1.3 GB** |
+| Layer              | What's declared                                                                                                              | Notes                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Language           | TypeScript 5.6.3                                                                                                             | `strict: true`, `module: NodeNext`                           |
+| Runtime            | Node (local: v22.22.2)                                                                                                       | No `.nvmrc`, no `engines` field                              |
+| Package manager    | npm, `package-lock.json` v3 present (1.05 MB)                                                                                | lockfile is in sync with `package.json`                      |
+| Module system      | ESM (`"type": "module"`)                                                                                                     | This is the root cause of several breakages below            |
+| Frontend           | React 18.3, Vite 5.4, Tailwind 3.4, shadcn/Radix (33 UI components), TanStack Query 5, wouter, Recharts, axios               | **Entirely orphaned — not in the build graph**               |
+| Backend            | Express 4.21, `ws` 8.18, Zod 3.23, helmet, cors, compression, morgan, express-rate-limit, express-session                    | Boots nowhere                                                |
+| Data               | Three competing stacks: Drizzle+Neon (`server/db.ts`), Sequelize (`server/db/`), and an in-memory mock (`server/storage.ts`) | Only the mock is wired to routes                             |
+| Tests              | Jest 29 + ts-jest + Testing Library; Cypress 13; Artillery; "k6"                                                             | Jest fails to start; Cypress specs target non-existent pages |
+| Ops (aspirational) | k8s manifests, nginx LB config, Prometheus/Grafana/Sentry YAML                                                               | No cluster, no Dockerfile, no CI workflow                    |
+| Deps               | 79 runtime + 40 dev = 119 direct                                                                                             | `node_modules` = **1.3 GB**                                  |
 
 **Size:** 132 tracked files; 60 under `client/src`, 34 under `server`.
 
@@ -60,27 +60,27 @@ client/index.html:203    const API_URL = 'http://localhost:3000/api';
 
 The Express server listens on **5000**. All 11 `fetch()` calls in that page target a port nothing listens on.
 
-| Item | Status | Evidence |
-|---|---|---|
+| Item                  | Status                     | Evidence                                                                  |
+| --------------------- | -------------------------- | ------------------------------------------------------------------------- |
 | Vanilla Bootstrap SPA | **Half-built / mis-wired** | `client/index.html` — renders, but every API call 404s/refuses at `:3000` |
-| React SPA | **Dead code** | Not referenced by `client/index.html`; `vite build` transforms 2 modules |
+| React SPA             | **Dead code**              | Not referenced by `client/index.html`; `vite build` transforms 2 modules  |
 
 ### 3.2 Referenced-but-missing modules
 
 `client/src/App.tsx` imports **ten modules that do not exist anywhere in the repo**:
 
-| Missing file | Imported by |
-|---|---|
-| `client/src/lib/queryClient.ts` | `App.tsx` |
-| `client/src/pages/Dashboard.tsx` | `App.tsx` |
-| `client/src/pages/Workouts.tsx` | `App.tsx` |
-| `client/src/pages/Challenges.tsx` | `App.tsx` |
-| `client/src/pages/Nutrition.tsx` | `App.tsx` |
-| `client/src/pages/AIInsights.tsx` | `App.tsx` |
-| `client/src/pages/not-found.tsx` | `App.tsx` |
+| Missing file                         | Imported by             |
+| ------------------------------------ | ----------------------- |
+| `client/src/lib/queryClient.ts`      | `App.tsx`               |
+| `client/src/pages/Dashboard.tsx`     | `App.tsx`               |
+| `client/src/pages/Workouts.tsx`      | `App.tsx`               |
+| `client/src/pages/Challenges.tsx`    | `App.tsx`               |
+| `client/src/pages/Nutrition.tsx`     | `App.tsx`               |
+| `client/src/pages/AIInsights.tsx`    | `App.tsx`               |
+| `client/src/pages/not-found.tsx`     | `App.tsx`               |
 | `client/src/context/AuthContext.tsx` | `App.tsx`, `Header.tsx` |
-| `client/src/hooks/useAuth.ts` | `App.tsx`, `Header.tsx` |
-| `client/src/hooks/use-mobile.ts` | `App.tsx`, `Header.tsx` |
+| `client/src/hooks/useAuth.ts`        | `App.tsx`, `Header.tsx` |
+| `client/src/hooks/use-mobile.ts`     | `App.tsx`, `Header.tsx` |
 
 Additionally missing but imported by many files: **`client/src/lib/utils.ts`** (the `cn()` helper that all 33 shadcn components depend on) and **`@/types`** (imported by `StatCard.tsx` and others).
 
@@ -96,18 +96,23 @@ client/src/pages/Register.tsx   141 bytes, detected as "JSON text data"
 Both contain, verbatim, the same blob:
 
 ```json
-{"code":"rate-limited","message":"You have hit the rate limit. Please upgrade to keep chatting.","providerLimitHit":false,"isRetryable":true}
+{
+  "code": "rate-limited",
+  "message": "You have hit the rate limit. Please upgrade to keep chatting.",
+  "providerLimitHit": false,
+  "isRetryable": true
+}
 ```
 
 This is an AI-coding-assistant error response that was written to disk and committed in `ee9afe6` ("Updated Login.tsx").
 
 **There is nothing to recover from history.** Tracing both paths across every commit:
 
-| Commit | Login.tsx | Register.tsx |
-|---|---|---|
-| `f8cccf0` … `a7ca5ec` | *(absent)* | *(absent)* |
-| `8a762d3` | 1386 B, starts `@@ .. @@` — a **unified diff fragment**, not TSX | 1531 B, same |
-| `ee9afe6` | 141 B error JSON | 141 B error JSON |
+| Commit                | Login.tsx                                                        | Register.tsx     |
+| --------------------- | ---------------------------------------------------------------- | ---------------- |
+| `f8cccf0` … `a7ca5ec` | _(absent)_                                                       | _(absent)_       |
+| `8a762d3`             | 1386 B, starts `@@ .. @@` — a **unified diff fragment**, not TSX | 1531 B, same     |
+| `ee9afe6`             | 141 B error JSON                                                 | 141 B error JSON |
 
 These two files have **never** held valid source. They must be written from scratch.
 
@@ -115,17 +120,17 @@ These two files have **never** held valid source. They must be written from scra
 
 `server/routes.ts` (849 lines) mounts 26 routes under `/api`. They are structurally fine and respond from in-memory mock data.
 
-| Feature | Routes | Status |
-|---|---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/csrf-token` | **Working logic, insecure** (see §7) |
-| Users | `GET/PATCH /users/:id` | Working against mock |
-| Activity stats | `GET /activity-stats/:userId`, `POST /activity-stats`, `GET /activity-stats/:userId/history` | Working against mock |
-| Goals | `GET /goals/:userId`, `POST /goals`, `PATCH /goals/:id` | Working against mock |
-| Workouts | `GET /workouts`, `GET /workouts/:id` | Working; 3 seeded workouts |
-| Workout sessions | `POST /workout-sessions`, `GET /workout-sessions/:userId`, `PATCH /workout-sessions/:id` | Working against mock |
-| Challenges | 7 routes incl. join / progress / participants | Working against mock |
-| Recommendations | `GET /recommendations/:userId`, `POST /recommendations/:id/feedback` | Working; canned text |
-| AI workout plan | `POST /workout-plans` | Returns template output |
+| Feature          | Routes                                                                                       | Status                               |
+| ---------------- | -------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Auth             | `POST /auth/register`, `POST /auth/login`, `GET /auth/csrf-token`                            | **Working logic, insecure** (see §7) |
+| Users            | `GET/PATCH /users/:id`                                                                       | Working against mock                 |
+| Activity stats   | `GET /activity-stats/:userId`, `POST /activity-stats`, `GET /activity-stats/:userId/history` | Working against mock                 |
+| Goals            | `GET /goals/:userId`, `POST /goals`, `PATCH /goals/:id`                                      | Working against mock                 |
+| Workouts         | `GET /workouts`, `GET /workouts/:id`                                                         | Working; 3 seeded workouts           |
+| Workout sessions | `POST /workout-sessions`, `GET /workout-sessions/:userId`, `PATCH /workout-sessions/:id`     | Working against mock                 |
+| Challenges       | 7 routes incl. join / progress / participants                                                | Working against mock                 |
+| Recommendations  | `GET /recommendations/:userId`, `POST /recommendations/:id/feedback`                         | Working; canned text                 |
+| AI workout plan  | `POST /workout-plans`                                                                        | Returns template output              |
 
 **Caveat:** all data lives in a module-level object in `server/storage.ts`. It resets on every process restart and is not shared between serverless invocations.
 
@@ -133,14 +138,14 @@ These two files have **never** held valid source. They must be written from scra
 
 Every one of these opens with a comment saying it is a mock:
 
-| File | Claims to be | Actually is |
-|---|---|---|
-| `server/openai.ts` | OpenAI GPT recommendations | `Math.random()` over 15 hardcoded strings |
-| `server/tensorflow.ts` | ML workout prediction | `if (goal.includes('weight loss')) return 'cardio'` |
-| `server/redis.ts` | Redis cache | a plain JS object |
-| `server/influxdb.ts` | InfluxDB time-series | `console.log` and `return []` |
-| `server/auth.ts` | Auth middleware | **sets `userId = 1` for every request, authenticated or not** |
-| `server/security.ts` | CSRF protection | validates the token, then ignores the result and calls `next()` |
+| File                   | Claims to be               | Actually is                                                     |
+| ---------------------- | -------------------------- | --------------------------------------------------------------- |
+| `server/openai.ts`     | OpenAI GPT recommendations | `Math.random()` over 15 hardcoded strings                       |
+| `server/tensorflow.ts` | ML workout prediction      | `if (goal.includes('weight loss')) return 'cardio'`             |
+| `server/redis.ts`      | Redis cache                | a plain JS object                                               |
+| `server/influxdb.ts`   | InfluxDB time-series       | `console.log` and `return []`                                   |
+| `server/auth.ts`       | Auth middleware            | **sets `userId = 1` for every request, authenticated or not**   |
+| `server/security.ts`   | CSRF protection            | validates the token, then ignores the result and calls `next()` |
 
 The corresponding packages — `@tensorflow/tfjs`, `openai`, `redis`, `@influxdata/influxdb-client` — are installed (a large share of the 1.3 GB) and imported by **zero** files.
 
@@ -181,6 +186,7 @@ Any CI runner or reviewer on a restricted network hits the same wall. (Both fail
 `"build": "tsc"`. Reproduced locally, and **this is exactly what kills every Vercel deployment** (§6.2).
 
 Error classes:
+
 - **~40 × TS2835/TS2834** — `module: NodeNext` requires explicit `.js` extensions on relative ESM imports. Every file in `server/` violates this.
 - **TS2307** — `server/db.ts` cannot resolve `@shared/schema` (the `paths` alias isn't honoured by NodeNext resolution without a bundler).
 - **TS2307** — `server/vite.ts:9` cannot resolve `../vite.config`.
@@ -215,16 +221,16 @@ ReferenceError: module is not defined in ES module scope
 
 ### 4.6 Summary
 
-| Command | Result |
-|---|---|
-| `npm ci` | ❌ fails (browser binary downloads) |
-| `npm run build` | ❌ fails — 65 TS errors |
-| `npm run check` | ❌ same 65 errors |
-| `npm run lint` | ❌ eslint not installed |
-| `npm test` | ❌ config crash |
-| `npm run test:e2e` | ❌ Cypress binary absent; specs target pages that don't exist |
-| `npm run dev` | ❌ server half dies; vite serves a page whose API calls all fail |
-| `npx vite build` | ✅ — but only builds the vanilla page (2 modules) |
+| Command            | Result                                                           |
+| ------------------ | ---------------------------------------------------------------- |
+| `npm ci`           | ❌ fails (browser binary downloads)                              |
+| `npm run build`    | ❌ fails — 65 TS errors                                          |
+| `npm run check`    | ❌ same 65 errors                                                |
+| `npm run lint`     | ❌ eslint not installed                                          |
+| `npm test`         | ❌ config crash                                                  |
+| `npm run test:e2e` | ❌ Cypress binary absent; specs target pages that don't exist    |
+| `npm run dev`      | ❌ server half dies; vite serves a page whose API calls all fail |
+| `npx vite build`   | ✅ — but only builds the vanilla page (2 modules)                |
 
 ---
 
@@ -232,15 +238,15 @@ ReferenceError: module is not defined in ES module scope
 
 > Free-tier terms below were checked against current provider documentation on 2026-09-20. `vercel.com` is blocked by this environment's egress proxy, so Vercel numbers come from the Vercel MCP documentation tool and current third-party summaries rather than a direct docs fetch — **please sanity-check the two Vercel figures marked ⚠️ before we commit to them.**
 
-| Dependency | Used for | Currently | Free tier adequate for a portfolio demo? |
-|---|---|---|---|
-| **PostgreSQL** | All persistence | Mocked in memory | **Yes — Neon Free.** 0.5 GB storage/project, 100 CU-hours/month, 100 projects. Scales to zero after 5 min idle. Projects are **not** deleted for inactivity on the current plan. Cold start after idle is ~1 s — acceptable, and hideable behind a skeleton. |
-| **Redis** | Caching | `{}` in memory | **Not needed.** Cut it. Nothing at demo scale justifies it; Upstash's free tier would work if it ever did. |
-| **InfluxDB** | Activity time-series | `console.log` | **Not needed.** Postgres handles 7–30 days of daily rows trivially. Cut it. |
-| **OpenAI API** | Recommendations | 15 canned strings | **No free tier — requires a paid account.** Must stay a labelled deterministic/demo path, or move behind a bring-your-own-key field. |
-| **TensorFlow.js** | Workout prediction | 5-branch `if` | **Not needed.** ~100 MB of dependency for a string match. Cut it. |
-| **Session store** | Auth sessions | `express-session` MemoryStore | Leaks memory and is per-instance. Needs a cookie/JWT or a Postgres-backed store. |
-| **Kubernetes / Nginx / Prometheus / Grafana / Sentry** | "DevOps" | YAML only | **Zero free path** for a real cluster. Cut the manifests or move them to a clearly-labelled `docs/` appendix. |
+| Dependency                                             | Used for             | Currently                     | Free tier adequate for a portfolio demo?                                                                                                                                                                                                                     |
+| ------------------------------------------------------ | -------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **PostgreSQL**                                         | All persistence      | Mocked in memory              | **Yes — Neon Free.** 0.5 GB storage/project, 100 CU-hours/month, 100 projects. Scales to zero after 5 min idle. Projects are **not** deleted for inactivity on the current plan. Cold start after idle is ~1 s — acceptable, and hideable behind a skeleton. |
+| **Redis**                                              | Caching              | `{}` in memory                | **Not needed.** Cut it. Nothing at demo scale justifies it; Upstash's free tier would work if it ever did.                                                                                                                                                   |
+| **InfluxDB**                                           | Activity time-series | `console.log`                 | **Not needed.** Postgres handles 7–30 days of daily rows trivially. Cut it.                                                                                                                                                                                  |
+| **OpenAI API**                                         | Recommendations      | 15 canned strings             | **No free tier — requires a paid account.** Must stay a labelled deterministic/demo path, or move behind a bring-your-own-key field.                                                                                                                         |
+| **TensorFlow.js**                                      | Workout prediction   | 5-branch `if`                 | **Not needed.** ~100 MB of dependency for a string match. Cut it.                                                                                                                                                                                            |
+| **Session store**                                      | Auth sessions        | `express-session` MemoryStore | Leaks memory and is per-instance. Needs a cookie/JWT or a Postgres-backed store.                                                                                                                                                                             |
+| **Kubernetes / Nginx / Prometheus / Grafana / Sentry** | "DevOps"             | YAML only                     | **Zero free path** for a real cluster. Cut the manifests or move them to a clearly-labelled `docs/` appendix.                                                                                                                                                |
 
 ---
 
@@ -250,19 +256,19 @@ ReferenceError: module is not defined in ES module scope
 
 **Partly. Two things genuinely do not fit, and one is load-bearing for a "real-time" claim.**
 
-| Feature | Vercel Hobby | Verdict |
-|---|---|---|
-| Vite static client | Native support | ✅ Fine |
-| Express REST API | Fits as serverless functions under `/api` | ✅ With restructuring |
-| **Persistent WebSocket server** (`server/index.ts`, `useWebSocket.ts`) | Serverless functions cannot hold long-lived connections | ❌ **Will not work.** Needs polling, SSE, or an external free WS service |
-| **In-memory state** (`server/storage.ts`) | Each invocation may hit a cold, isolated instance | ❌ **Will not work.** Writes vanish; reads are inconsistent. Needs a real DB |
-| Function duration | 60 s legacy / 300 s with Fluid Compute ⚠️ | ✅ Nothing here is long-running |
-| Function memory | Configurable; default is ample | ✅ Fine once TF.js is removed |
-| Build minutes | 6,000 / month ⚠️ | ✅ Fine |
-| Bandwidth | 100 GB / month ⚠️ | ✅ Fine |
-| Deployments | 100 / day, 200 projects | ✅ Fine |
-| Cron | Available on Hobby (daily granularity) | Not needed |
-| **Non-commercial clause** | Hobby is personal use only | ✅ A portfolio project qualifies |
+| Feature                                                                | Vercel Hobby                                            | Verdict                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Vite static client                                                     | Native support                                          | ✅ Fine                                                                      |
+| Express REST API                                                       | Fits as serverless functions under `/api`               | ✅ With restructuring                                                        |
+| **Persistent WebSocket server** (`server/index.ts`, `useWebSocket.ts`) | Serverless functions cannot hold long-lived connections | ❌ **Will not work.** Needs polling, SSE, or an external free WS service     |
+| **In-memory state** (`server/storage.ts`)                              | Each invocation may hit a cold, isolated instance       | ❌ **Will not work.** Writes vanish; reads are inconsistent. Needs a real DB |
+| Function duration                                                      | 60 s legacy / 300 s with Fluid Compute ⚠️               | ✅ Nothing here is long-running                                              |
+| Function memory                                                        | Configurable; default is ample                          | ✅ Fine once TF.js is removed                                                |
+| Build minutes                                                          | 6,000 / month ⚠️                                        | ✅ Fine                                                                      |
+| Bandwidth                                                              | 100 GB / month ⚠️                                       | ✅ Fine                                                                      |
+| Deployments                                                            | 100 / day, 200 projects                                 | ✅ Fine                                                                      |
+| Cron                                                                   | Available on Hobby (daily granularity)                  | Not needed                                                                   |
+| **Non-commercial clause**                                              | Hobby is personal use only                              | ✅ A portfolio project qualifies                                             |
 
 **Recommendation:** keep it on Vercel, drop the WebSocket layer (replace real-time challenge updates with TanStack Query polling — visually identical in a 90-second demo), and move persistence to Neon Postgres. No split deployment needed.
 
@@ -309,18 +315,18 @@ I scanned the working tree **and every commit reachable from every ref** for Ope
 
 ### 7.2 Real security defects in code
 
-| # | Severity | Issue | Location |
-|---|---|---|---|
-| 1 | **Critical** | **Authentication is a no-op.** Any request without a Bearer token is silently assigned `userId = 1` and granted full access to that user's data. | `server/auth.ts:20-35` |
-| 2 | **Critical** | **Authorization is a no-op.** `authorize()` logs `[MOCK] Authorization check...` and calls `next()`. The `PermissionLevel` enum is decorative. | `server/auth.ts:47-70` |
-| 3 | **High** | **Passwords hashed with bare SHA-256, unsalted.** `crypto.createHash('sha256').update(password)` — trivially reversible via rainbow tables. `bcryptjs` is installed and unused. | `server/routes.ts:188`, `:259` |
-| 4 | **High** | **CSRF protection validates the token then ignores the result** and proceeds regardless (the rejection is commented out). | `server/security.ts:76-84` |
-| 5 | **High** | **Session secret falls back to a hardcoded literal** — `'health-hub-pro-secret-key-change-in-production'` — when `SESSION_SECRET` is unset. | `server/index.ts:72` |
-| 6 | Medium | **Login does not create a session.** It returns the user object and nothing else; the client stores it in `localStorage`. Auth state is entirely client-side and trivially forged. | `server/routes.ts:244-272` |
-| 7 | Medium | **`PATCH /users/:id` accepts `req.body` wholesale** with no schema validation and no ownership check — a user can rewrite any other user's record, including `role`. | `server/routes.ts:295-320` |
-| 8 | Medium | **Wildcard CORS** — `Access-Control-Allow-Origin: *` in `security.ts` (though the `index.ts` cors() is scoped; the two conflict). | `server/security.ts:8` |
-| 9 | Medium | Production CORS allowlist is the **placeholder `https://your-domain.com`**. | `server/index.ts:41` |
-| 10 | Low | `express-session` uses the default `MemoryStore` — leaks memory, warns in production, breaks across instances. | `server/index.ts:70` |
+| #   | Severity     | Issue                                                                                                                                                                              | Location                       |
+| --- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| 1   | **Critical** | **Authentication is a no-op.** Any request without a Bearer token is silently assigned `userId = 1` and granted full access to that user's data.                                   | `server/auth.ts:20-35`         |
+| 2   | **Critical** | **Authorization is a no-op.** `authorize()` logs `[MOCK] Authorization check...` and calls `next()`. The `PermissionLevel` enum is decorative.                                     | `server/auth.ts:47-70`         |
+| 3   | **High**     | **Passwords hashed with bare SHA-256, unsalted.** `crypto.createHash('sha256').update(password)` — trivially reversible via rainbow tables. `bcryptjs` is installed and unused.    | `server/routes.ts:188`, `:259` |
+| 4   | **High**     | **CSRF protection validates the token then ignores the result** and proceeds regardless (the rejection is commented out).                                                          | `server/security.ts:76-84`     |
+| 5   | **High**     | **Session secret falls back to a hardcoded literal** — `'health-hub-pro-secret-key-change-in-production'` — when `SESSION_SECRET` is unset.                                        | `server/index.ts:72`           |
+| 6   | Medium       | **Login does not create a session.** It returns the user object and nothing else; the client stores it in `localStorage`. Auth state is entirely client-side and trivially forged. | `server/routes.ts:244-272`     |
+| 7   | Medium       | **`PATCH /users/:id` accepts `req.body` wholesale** with no schema validation and no ownership check — a user can rewrite any other user's record, including `role`.               | `server/routes.ts:295-320`     |
+| 8   | Medium       | **Wildcard CORS** — `Access-Control-Allow-Origin: *` in `security.ts` (though the `index.ts` cors() is scoped; the two conflict).                                                  | `server/security.ts:8`         |
+| 9   | Medium       | Production CORS allowlist is the **placeholder `https://your-domain.com`**.                                                                                                        | `server/index.ts:41`           |
+| 10  | Low          | `express-session` uses the default `MemoryStore` — leaks memory, warns in production, breaks across instances.                                                                     | `server/index.ts:70`           |
 
 ### 7.3 Dependency vulnerabilities
 
@@ -355,19 +361,19 @@ The README is the document a recruiter reads. It currently contains a number of 
 
 ## 8. Junk to remove
 
-| Path | Size | Why |
-|---|---|---|
-| `generated-icon.png` | 308 KB | Replit auto-generated; only referenced by the README header |
-| `replit_agent/architecture.md` | 16 KB | Replit agent scratch notes, describes a design that was never built |
-| `attached_assets/*.txt` | 8 KB | The original challenge brief — reads as "this is homework" to a recruiter |
-| `k8s/` (8 manifests) | 48 KB | No cluster exists, no free path to one |
-| `nginx-load-balancer.conf` | 8 KB | No load balancer exists |
-| `k6-load-test.js`, `artillery-load-test.yml`, `artillery-functions.js` | 14 KB | Never run; `artillery`+`k6` account for most of the 133 vulnerabilities and the Chromium download that breaks `npm ci` |
-| `server/storage_db.ts`, `server/db/`, `server/db/mock.ts` | ~1.2 K lines | Two unused parallel persistence layers |
-| `server/influxdb.ts`, `server/redis.ts`, `server/tensorflow.ts` | ~400 lines | Mocks for services being cut |
-| `theme.json` + `@replit/vite-plugin-*` deps | — | Replit-specific; the plugins are not even used in `vite.config.ts` |
-| `cypress/` + `cypress.config.ts` | — | Specs test pages that do not exist; replacing with Playwright (already available in this environment, no binary download) |
-| Unused deps | ~700 MB | `@tensorflow/tfjs`, `openai`, `redis`, `@influxdata/influxdb-client`, `passport`, `passport-local`, `sequelize`, `sequelize-typescript`, `pg`, `pg-hstore`, `framer-motion`, `puppeteer`, `artillery`, `k6`, `msw` — all zero-import |
+| Path                                                                   | Size         | Why                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `generated-icon.png`                                                   | 308 KB       | Replit auto-generated; only referenced by the README header                                                                                                                                                                          |
+| `replit_agent/architecture.md`                                         | 16 KB        | Replit agent scratch notes, describes a design that was never built                                                                                                                                                                  |
+| `attached_assets/*.txt`                                                | 8 KB         | The original challenge brief — reads as "this is homework" to a recruiter                                                                                                                                                            |
+| `k8s/` (8 manifests)                                                   | 48 KB        | No cluster exists, no free path to one                                                                                                                                                                                               |
+| `nginx-load-balancer.conf`                                             | 8 KB         | No load balancer exists                                                                                                                                                                                                              |
+| `k6-load-test.js`, `artillery-load-test.yml`, `artillery-functions.js` | 14 KB        | Never run; `artillery`+`k6` account for most of the 133 vulnerabilities and the Chromium download that breaks `npm ci`                                                                                                               |
+| `server/storage_db.ts`, `server/db/`, `server/db/mock.ts`              | ~1.2 K lines | Two unused parallel persistence layers                                                                                                                                                                                               |
+| `server/influxdb.ts`, `server/redis.ts`, `server/tensorflow.ts`        | ~400 lines   | Mocks for services being cut                                                                                                                                                                                                         |
+| `theme.json` + `@replit/vite-plugin-*` deps                            | —            | Replit-specific; the plugins are not even used in `vite.config.ts`                                                                                                                                                                   |
+| `cypress/` + `cypress.config.ts`                                       | —            | Specs test pages that do not exist; replacing with Playwright (already available in this environment, no binary download)                                                                                                            |
+| Unused deps                                                            | ~700 MB      | `@tensorflow/tfjs`, `openai`, `redis`, `@influxdata/influxdb-client`, `passport`, `passport-local`, `sequelize`, `sequelize-typescript`, `pg`, `pg-hstore`, `framer-motion`, `puppeteer`, `artillery`, `k6`, `msw` — all zero-import |
 
 No dead remote branches: `origin` has only `main` and this working branch.
 
@@ -378,6 +384,7 @@ No dead remote branches: `origin` has only `main` and this working branch.
 **How far from "live and impressive"?** Further than the commit history suggests. The last four commits are titled "Complete System Audit and Optimization", "Fix ESM module system errors", "Fix registration API fetch error" and "Updated Login.tsx" — every one of them produced a failing Vercel build, and the last one overwrote two source files with an API error message.
 
 What actually exists:
+
 - ✅ A clean, secret-free git history.
 - ✅ A sensible REST API shape — 26 endpoints covering a coherent product.
 - ✅ 33 well-formed shadcn/Radix UI components and a complete Tailwind design-token setup.
@@ -400,47 +407,47 @@ What actually exists:
 
 **1. Scope: which features ship in v1?**
 My default: **Dashboard, Workouts (browse + start/complete a session), Challenges (join + leaderboard), AI Insights (deterministic, honestly labelled), plus auth.** Cut the **Nutrition** page entirely — there is no nutrition data model, no API, and no seed data behind it; it exists only as a nav link and a Cypress spec. Cutting it is one honest line in the README instead of an empty page.
-→ *Default: ship those four, cut Nutrition.*
+→ _Default: ship those four, cut Nutrition._
 
 **2. The "AI" features — what do we claim?**
-OpenAI has no free tier. My default: keep the recommendation engine **deterministic and rules-based** (driven by the user's actual stats: low water → hydration tip, declining steps → activity tip), label it plainly in the UI as *"Rule-based insights — not an LLM"*, and remove every OpenAI/TensorFlow claim from the README. Optionally ship a "bring your own API key" field that upgrades to real GPT output, clearly marked optional.
-→ *Default: deterministic engine, honestly labelled; no OpenAI dependency; BYO-key field only if it costs nothing.*
+OpenAI has no free tier. My default: keep the recommendation engine **deterministic and rules-based** (driven by the user's actual stats: low water → hydration tip, declining steps → activity tip), label it plainly in the UI as _"Rule-based insights — not an LLM"_, and remove every OpenAI/TensorFlow claim from the README. Optionally ship a "bring your own API key" field that upgrades to real GPT output, clearly marked optional.
+→ _Default: deterministic engine, honestly labelled; no OpenAI dependency; BYO-key field only if it costs nothing._
 
 **3. Real-time: WebSockets or polling?**
 Vercel serverless cannot hold WebSocket connections. My default: **drop WebSockets, use TanStack Query polling** (5 s on the challenge leaderboard). Visually identical during a demo, zero extra infrastructure, no second host.
-→ *Default: polling.*
+→ _Default: polling._
 
 **4. Database: Neon Postgres, or stay in-memory?**
 In-memory state does not survive serverless. My default: **Neon Free Postgres + Drizzle**, seeded with a demo user, workouts and challenges. This makes registration, logging activity and joining challenges actually persist — which is the difference between a demo and a mockup. Tradeoff: ~1 s cold start after 5 minutes idle, which I will hide behind skeletons.
-→ *Default: Neon + Drizzle.* **This needs you to create a free Neon account and give me the connection string** (or create the DB via the Vercel ↔ Neon integration, which I can then read from env). **This is the one credential I cannot self-serve.**
-→ *Fallback if you'd rather not:* keep in-memory storage, accept that data resets, and label the app "demo mode — data is not persisted". Functional, visibly less impressive.
+→ _Default: Neon + Drizzle._ **This needs you to create a free Neon account and give me the connection string** (or create the DB via the Vercel ↔ Neon integration, which I can then read from env). **This is the one credential I cannot self-serve.**
+→ _Fallback if you'd rather not:_ keep in-memory storage, accept that data resets, and label the app "demo mode — data is not persisted". Functional, visibly less impressive.
 
 **5. Vercel SSO protection is ON — may I turn it off?**
 Right now any successful deployment would still be behind a Vercel login wall. A recruiter cannot see it. Turning it off makes the production URL public.
-→ *Default: yes, disable SSO protection on this project.* **Security decision — I will not do this without your explicit yes.**
+→ _Default: yes, disable SSO protection on this project._ **Security decision — I will not do this without your explicit yes.**
 
 **6. Demo access for a stranger with no credentials?**
 My default: seed a **demo account (`demo` / `demo1234`) with prefilled credentials shown on the login screen and a one-click "Try the demo" button**, pre-populated with 30 days of realistic activity data so the charts and leaderboards are not empty. No signup required, ever.
-→ *Default: yes.*
+→ _Default: yes._
 
 **7. Delete the junk listed in §8, including `attached_assets/` and `k8s/`?**
 `attached_assets/` contains the original coding-challenge brief. Leaving it in frames the repo as homework; removing it frames it as a product. `k8s/` and the load-test configs describe infrastructure that does not exist.
-→ *Default: delete all of §8.* Git history preserves everything, so nothing is truly lost. **Say the word if you want `k8s/` kept as a "here's how I'd scale it" appendix in `docs/` instead.**
+→ _Default: delete all of §8._ Git history preserves everything, so nothing is truly lost. **Say the word if you want `k8s/` kept as a "here's how I'd scale it" appendix in `docs/` instead.**
 
 **8. README rewrite — how blunt about the mocks?**
-My default: **rewrite from scratch, claim only what runs.** No microservices diagram, no TensorFlow badge, no invented benchmarks. A short "Design decisions & tradeoffs" section that says *"recommendations are rule-based rather than LLM-backed to keep the demo free to run"* reads as engineering judgement, not as a shortfall — and it survives an interviewer opening the file.
-→ *Default: full honest rewrite.*
+My default: **rewrite from scratch, claim only what runs.** No microservices diagram, no TensorFlow badge, no invented benchmarks. A short "Design decisions & tradeoffs" section that says _"recommendations are rule-based rather than LLM-backed to keep the demo free to run"_ reads as engineering judgement, not as a shortfall — and it survives an interviewer opening the file.
+→ _Default: full honest rewrite._
 
 **9. Is the repo public, and do you want a PR or a direct merge?**
-→ *Default: assume public (the Vercel project and README badges imply it). I'll work on `claude/festive-babbage-oze5t4`, commit in small logical steps, and **open a PR rather than merging** so you can read the diff.*
+→ _Default: assume public (the Vercel project and README badges imply it). I'll work on `claude/festive-babbage-oze5t4`, commit in small logical steps, and **open a PR rather than merging** so you can read the diff._
 
 **10. Add a GitHub Actions CI workflow (lint + typecheck + test + build on every push)?**
 Free for public repos, and a green checkmark on the repo front page is worth real points with reviewers.
-→ *Default: yes, add it.*
+→ _Default: yes, add it._
 
 **11. Anything in `.NET/C#` territory you want reflected here?**
 This is a Node/React project; your day-job stack doesn't apply. Flagging only in case you'd rather this project be rebuilt to showcase .NET instead — that would be a full rewrite and a different conversation.
-→ *Default: keep it Node/React.*
+→ _Default: keep it Node/React._
 
 ---
 

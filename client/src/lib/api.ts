@@ -1,125 +1,123 @@
-import axios from 'axios';
+import type {
+  ActivityStat,
+  Challenge,
+  ChallengeSummary,
+  Goal,
+  GoalProgress,
+  Insight,
+  LeaderboardRow,
+  PublicUser,
+  Workout,
+  WorkoutSession,
+} from '@shared/schema';
 
-// Create axios instance with base configuration
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+/** Field-level validation errors, keyed by form field name. */
+export type FieldErrors = Record<string, string[] | undefined>;
 
-// Request interceptor for authentication
-api.interceptors.request.use(
-  (config) => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      const userData = JSON.parse(user);
-      if (userData.token) {
-        config.headers.Authorization = `Bearer ${userData.token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly fieldErrors?: FieldErrors,
+  ) {
+    super(message);
+    this.name = 'ApiError';
   }
-);
+}
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      // Clear user data and redirect to login
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+type ApiErrorBody = {
+  error?: string;
+  details?: { fieldErrors?: FieldErrors } & FieldErrors;
+};
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`/api${path}`, {
+      ...init,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', ...init.headers },
+    });
+  } catch {
+    // Network-level failure: offline, DNS, connection refused.
+    throw new ApiError(0, 'Cannot reach the server. Check your connection and try again.');
   }
-);
 
-export default api;
+  if (response.status === 204) return undefined as T;
 
-// API functions
-export const authAPI = {
-  login: (credentials: { username: string; password: string }) =>
-    api.post('/auth/login', credentials),
-  register: (userData: any) =>
-    api.post('/auth/register', userData),
-  getCsrfToken: () =>
-    api.get('/auth/csrf-token'),
-};
+  const text = await response.text();
+  let body: unknown;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    throw new ApiError(response.status, 'The server returned an unexpected response.');
+  }
 
-export const userAPI = {
-  getUser: (id: number) =>
-    api.get(`/users/${id}`),
-  updateUser: (id: number, data: any) =>
-    api.patch(`/users/${id}`, data),
-};
+  if (!response.ok) {
+    const parsed = body as ApiErrorBody;
+    throw new ApiError(
+      response.status,
+      parsed.error ?? 'Something went wrong.',
+      parsed.details?.fieldErrors,
+    );
+  }
 
-export const activityAPI = {
-  getStats: (userId: number, date?: string) =>
-    api.get(`/activity-stats/${userId}${date ? `?date=${date}` : ''}`),
-  createStats: (data: any) =>
-    api.post('/activity-stats', data),
-  getHistory: (userId: number, days: number = 7) =>
-    api.get(`/activity-stats/${userId}/history?days=${days}`),
-};
+  return body as T;
+}
 
-export const goalsAPI = {
-  getGoals: (userId: number) =>
-    api.get(`/goals/${userId}`),
-  createGoal: (data: any) =>
-    api.post('/goals', data),
-  updateGoal: (id: number, data: any) =>
-    api.patch(`/goals/${id}`, data),
-};
+const get = <T>(path: string) => request<T>(path);
+const send = <T>(method: string, path: string, body?: unknown) =>
+  request<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 
-export const workoutsAPI = {
-  getWorkouts: (type?: string, level?: string) => {
-    const params = new URLSearchParams();
-    if (type) params.append('type', type);
-    if (level) params.append('level', level);
-    return api.get(`/workouts?${params.toString()}`);
+export const api = {
+  health: () => get<{ status: string; persistent: boolean }>('/health'),
+
+  register: (input: {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) => send<{ user: PublicUser }>('POST', '/auth/register', input),
+  login: (input: { username: string; password: string }) =>
+    send<{ user: PublicUser }>('POST', '/auth/login', input),
+  demoLogin: () => send<{ user: PublicUser }>('POST', '/auth/demo'),
+  logout: () => send<{ ok: true }>('POST', '/auth/logout'),
+  me: () => get<{ user: PublicUser | null }>('/auth/me'),
+  updateProfile: (patch: Record<string, unknown>) =>
+    send<{ user: PublicUser }>('PATCH', '/users/me', patch),
+
+  activity: (date?: string) =>
+    get<{ activity: ActivityStat }>(`/activity${date ? `?date=${date}` : ''}`),
+  saveActivity: (patch: Record<string, number | string>) =>
+    send<{ activity: ActivityStat }>('PUT', '/activity', patch),
+  history: (days: number) => get<{ history: ActivityStat[] }>(`/activity/history?days=${days}`),
+
+  goals: () => get<{ goals: GoalProgress[] }>('/goals'),
+  saveGoal: (input: { type: string; target: number }) =>
+    send<{ goal: Goal }>('PUT', '/goals', input),
+
+  workouts: (params: { type?: string; difficulty?: string; q?: string }) => {
+    const search = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) search.set(k, v);
+    const qs = search.toString();
+    return get<{ workouts: Workout[] }>(`/workouts${qs ? `?${qs}` : ''}`);
   },
-  getWorkout: (id: number) =>
-    api.get(`/workouts/${id}`),
-  createWorkoutSession: (data: any) =>
-    api.post('/workout-sessions', data),
-  getWorkoutSessions: (userId: number) =>
-    api.get(`/workout-sessions/${userId}`),
-  updateWorkoutSession: (id: number, data: any) =>
-    api.patch(`/workout-sessions/${id}`, data),
-};
+  workout: (id: number) => get<{ workout: Workout }>(`/workouts/${id}`),
 
-export const challengesAPI = {
-  getChallenges: () =>
-    api.get('/challenges'),
-  getChallenge: (id: number) =>
-    api.get(`/challenges/${id}`),
-  createChallenge: (data: any) =>
-    api.post('/challenges', data),
-  getParticipants: (challengeId: number) =>
-    api.get(`/challenges/${challengeId}/participants`),
-  joinChallenge: (challengeId: number, userId: number) =>
-    api.post(`/challenges/${challengeId}/join`, { userId }),
-  updateProgress: (challengeId: number, userId: number, progress: number) =>
-    api.patch(`/challenges/${challengeId}/progress`, { userId, progress }),
-  getUserChallenges: (userId: number) =>
-    api.get(`/users/${userId}/challenges`),
-};
+  sessions: (limit = 10) =>
+    get<{ sessions: Array<WorkoutSession & { workout: Workout }> }>(`/sessions?limit=${limit}`),
+  startSession: (workoutId: number) =>
+    send<{ session: WorkoutSession }>('POST', '/sessions', { workoutId }),
+  finishSession: (id: number, elapsedSec: number) =>
+    send<{ session: WorkoutSession }>('POST', `/sessions/${id}/finish`, { elapsedSec }),
 
-export const recommendationsAPI = {
-  getRecommendations: (userId: number, type?: string) => {
-    const params = new URLSearchParams();
-    if (type) params.append('type', type);
-    return api.get(`/recommendations/${userId}?${params.toString()}`);
-  },
-  provideFeedback: (id: number, feedback: string) =>
-    api.post(`/recommendations/${id}/feedback`, { feedback }),
-  generateWorkoutPlan: (userId: number, preferences: any) =>
-    api.post('/workout-plans', { userId, preferences }),
+  challenges: () => get<{ challenges: ChallengeSummary[] }>('/challenges'),
+  leaderboard: (id: number) =>
+    get<{ challenge: Challenge; leaderboard: LeaderboardRow[] }>(`/challenges/${id}/leaderboard`),
+  joinChallenge: (id: number) => send<{ ok: true }>('POST', `/challenges/${id}/join`),
+  leaveChallenge: (id: number) => send<{ ok: true }>('DELETE', `/challenges/${id}/join`),
+
+  insights: () => get<{ insights: Insight[]; generatedAt: string }>('/insights'),
 };
