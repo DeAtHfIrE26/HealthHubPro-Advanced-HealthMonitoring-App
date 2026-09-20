@@ -159,6 +159,14 @@ test.describe('core flows', () => {
     await expect(rows.first()).toBeVisible();
   });
 
+  test('the leaderboard says which entries are generated', async ({ page }) => {
+    await page.getByRole('link', { name: 'Challenges' }).first().click();
+    await page.getByRole('button', { name: 'Leaderboard' }).first().click();
+
+    await expect(page.getByText('Sample').first()).toBeVisible();
+    await expect(page.getByText(/generated pace-setters/i).first()).toBeVisible();
+  });
+
   test('a challenge can be joined and left', async ({ page }) => {
     await page.getByRole('link', { name: 'Challenges' }).first().click();
 

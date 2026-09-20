@@ -228,6 +228,10 @@ const WORKOUTS: SeedWorkout[] = [
   },
 ];
 
+/**
+ * Generated accounts that populate the leaderboards. Not people; the API flags
+ * every row belonging to one so the UI can say as much.
+ */
 const COMPANIONS = [
   { username: 'ava_r', firstName: 'Ava', lastName: 'Restrepo', location: 'Lisbon', bias: 1.18 },
   { username: 'kenji_t', firstName: 'Kenji', lastName: 'Tanaka', location: 'Osaka', bias: 1.06 },
@@ -235,6 +239,8 @@ const COMPANIONS = [
   { username: 'marcus_o', firstName: 'Marcus', lastName: 'Okonkwo', location: 'Leeds', bias: 0.89 },
   { username: 'lena_v', firstName: 'Lena', lastName: 'Vogel', location: 'Berlin', bias: 0.81 },
 ];
+
+export const SAMPLE_USERNAMES: ReadonlySet<string> = new Set(COMPANIONS.map((c) => c.username));
 
 /** One day of plausible activity. Weekends skew higher; Mondays lower. */
 function dayActivity(

@@ -10,7 +10,7 @@ import type {
   Challenge,
   Goal,
   GoalType,
-  LeaderboardRow,
+  LeaderboardEntry,
   User,
   Workout,
   WorkoutSession,
@@ -452,7 +452,7 @@ export class MemoryStorage implements Storage {
       .reduce((sum, a) => sum + a[field], 0);
   }
 
-  async getLeaderboard(challengeId: number): Promise<LeaderboardRow[]> {
+  async getLeaderboard(challengeId: number): Promise<LeaderboardEntry[]> {
     const challenge = await this.getChallenge(challengeId);
     if (!challenge) return [];
 

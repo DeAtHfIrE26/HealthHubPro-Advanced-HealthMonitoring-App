@@ -289,7 +289,7 @@ export type WorkoutQuery = z.infer<typeof workoutQuerySchema>;
 
 export type GoalProgress = Goal & { current: number; percent: number };
 
-export type LeaderboardRow = {
+export type LeaderboardEntry = {
   userId: number;
   name: string;
   username: string;
@@ -297,6 +297,16 @@ export type LeaderboardRow = {
   percent: number;
   rank: number;
 };
+
+/**
+ * A leaderboard entry as the API presents it.
+ *
+ * `isSample` marks the generated pace-setter accounts that ship with the seed.
+ * They exist so a leaderboard has something on it before anyone else signs up,
+ * and the UI says so — a standing you are chasing needs to be honest about
+ * whether there is a person on the other end of it.
+ */
+export type LeaderboardRow = LeaderboardEntry & { isSample: boolean };
 
 export type ChallengeSummary = Challenge & {
   participantCount: number;

@@ -13,7 +13,7 @@ import type {
   Challenge,
   Goal,
   GoalType,
-  LeaderboardRow,
+  LeaderboardEntry,
   User,
   Workout,
   WorkoutSession,
@@ -573,7 +573,7 @@ export class PostgresStorage implements Storage {
     return row?.total ?? 0;
   }
 
-  async getLeaderboard(challengeId: number): Promise<LeaderboardRow[]> {
+  async getLeaderboard(challengeId: number): Promise<LeaderboardEntry[]> {
     const challenge = await this.getChallenge(challengeId);
     if (!challenge) return [];
 

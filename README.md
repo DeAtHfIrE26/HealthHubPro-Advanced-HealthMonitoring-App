@@ -24,7 +24,7 @@ You never need them. The login screen has a **Try the demo** button that opens a
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dashboard**  | Today's steps, calories, active minutes, sleep and water, each with a week-on-week delta. Five goal rings. A 7/14/30-day history chart across any metric, with your goal drawn as a reference line. |
 | **Workouts**   | A catalogue filterable by type, difficulty and free text. Start a session, watch a live timer, finish it — calories are estimated from elapsed time against the workout's burn rate.                |
-| **Challenges** | Join step, calorie, active-minute and workout-count challenges. Leaderboards rank every participant and refresh while you watch.                                                                    |
+| **Challenges** | Join step, calorie, active-minute and workout-count challenges. Leaderboards rank every participant and refresh while you watch, and label the generated pace-setters as such.                      |
 | **Insights**   | Rule-based recommendations derived from your last 14 days. Each card names the data behind it.                                                                                                      |
 | **Settings**   | Edit your profile and the five daily goals. Import your history from an Apple Health `export.xml` or a CSV from Google Fit, Fitbit or a spreadsheet. Export everything back out as JSON or CSV.     |
 
@@ -35,6 +35,10 @@ Settings takes an Apple Health `export.xml` or a CSV and turns it into daily tot
 When a day already has data you choose what happens. **Keep what I logged** (the default) only fills metrics that are currently empty, so an import can never quietly overwrite something you typed. **Replace with the file** lets the imported values win, and says so before you commit.
 
 Export is the same data in reverse, and it is not a lock-in gesture: JSON carries your profile, goals, full activity history, workout sessions and joined challenges; CSV is the daily activity series. Neither contains your password hash.
+
+### About the people on the leaderboard
+
+Five of them are generated. They exist so a challenge has a standing to chase before anyone else signs up, and **every row belonging to one is labelled `Sample` with a line underneath saying they are not real people.** A ranking you are measuring yourself against has to be honest about whether there is someone on the other end of it.
 
 ### About the "AI"
 

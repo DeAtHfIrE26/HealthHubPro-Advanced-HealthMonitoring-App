@@ -1,10 +1,10 @@
 # Testing
 
-**232 unit and integration tests + 88 end-to-end tests.** All passing as of 2026-09-20.
+**233 unit and integration tests + 90 end-to-end tests.** All passing as of 2026-09-20.
 
 ```bash
-npm test          # 232 passed, 7 skipped (Postgres, needs DATABASE_URL)
-npm run test:e2e  # 88 passed across desktop and mobile
+npm test          # 233 passed, 7 skipped (Postgres, needs DATABASE_URL)
+npm run test:e2e  # 90 passed across desktop and mobile
 ```
 
 For context: before this work the test suite could not execute at all. `npm test` crashed on `ReferenceError: module is not defined in ES module scope` — the Jest config used CommonJS under `"type": "module"` — and the Cypress specs targeted pages that did not exist.
@@ -22,7 +22,7 @@ For context: before this work the test suite could not execute at all. `npm test
 | Formatting        | `client/src/lib/format.test.ts`         | Duration boundaries (59s/60s/3599s/3600s/86399s), local-vs-UTC date parsing, relative days, pluralisation, unicode initials, empty strings                                                                                                                                                                                                                                                                                                                                                                                               |
 | Import parsers    | `client/src/lib/import/parsers.test.ts` | Apple Health record mapping, kJ→kcal and mL→L conversion, sleep derived from record duration, `InBed` records excluded, unmapped types skipped, unreadable values reported rather than dropped, wrong-XML and empty-file handling, the 24h sleep cap, and a 5,000-record file reassembled across 4MB read chunks. CSV column aliases for Google Fit / Fitbit / Garmin, quoted thousands separators, three date layouts, repeated rows summed, blank cells left unset, CRLF, and every failure message naming the columns it actually saw |
 
-### Integration — 106 tests
+### Integration — 107 tests
 
 `test/api.test.ts` drives the real Express app through Supertest. Every route is covered for happy path, invalid input, unauthorised access and not-found. Beyond the obvious:
 
@@ -32,6 +32,7 @@ For context: before this work the test suite could not execute at all. `npm test
 - **Mass assignment** — `PATCH /users/me` rejects `role`, `passwordHash` and any other key outside the allow-list.
 - **CSRF shape** — a form-encoded POST is refused with 415; a bodyless JSON POST is allowed.
 - **Leakage** — no response, including the leaderboard, contains a password hash.
+- **Sample accounts** — the generated pace-setters are flagged on the leaderboard and a real signed-in account never is.
 - **Derived progress** — logging activity moves challenge progress without touching a counter.
 - **Malformed bodies** — invalid JSON returns 400, oversized bodies 413.
 - **Backfill** — writing an explicit past date leaves today alone; a date five days out is refused, while tomorrow is accepted because a user east of UTC is already living it.
@@ -46,11 +47,11 @@ For context: before this work the test suite could not execute at all. `npm test
 - **Export carries no credentials** — neither `passwordHash` nor a bcrypt prefix appears anywhere in the payload, and an unknown `format` is a 400.
 - **Round trip** — data imported from a file comes back out of the export byte-for-byte.
 
-### End-to-end — 88 tests (44 × desktop, 44 × mobile)
+### End-to-end — 90 tests (45 × desktop, 45 × mobile)
 
 `e2e/auth.spec.ts`, `e2e/app.spec.ts` and `e2e/settings.spec.ts`, run with Playwright **against the production build**, not the dev server.
 
-Covered flows: one-click demo, manual sign-in, wrong password, registration with inline validation, sign-out and route protection, redirect away from login when signed in, dashboard render, logging activity, correcting a past day without disturbing today, refusing a future day, out-of-range rejection, chart metric and range switching, the chart's table view, workout search/filter/clear, the empty state, start-and-finish a session, challenge join/leave, leaderboard, insights (including asserting the "not a language model" disclosure is still present), browser back/forward, deep-link reload, 404, double-submit, theme persistence, the skip link, 360px overflow on four pages, and the pinned mobile navigation.
+Covered flows: one-click demo, manual sign-in, wrong password, registration with inline validation, sign-out and route protection, redirect away from login when signed in, dashboard render, logging activity, correcting a past day without disturbing today, refusing a future day, out-of-range rejection, chart metric and range switching, the chart's table view, workout search/filter/clear, the empty state, start-and-finish a session, challenge join/leave, leaderboard, the sample-account labelling, insights (including asserting the "not a language model" disclosure is still present), browser back/forward, deep-link reload, 404, double-submit, theme persistence, the skip link, 360px overflow on four pages, and the pinned mobile navigation.
 
 `e2e/settings.spec.ts` drives import and export through a real browser with real files on disk: a CSV is previewed before anything is written, merge is shown refusing to overwrite seeded days, overwrite is shown replacing them and the dashboard following, a fresh account takes the whole history, a file with no date column and an unsupported file type each explain themselves, cancel discards the preview, and both downloads are opened and their contents parsed — the JSON asserted to contain the profile, five goals and no `passwordHash`, the CSV asserted to have the right header row.
 

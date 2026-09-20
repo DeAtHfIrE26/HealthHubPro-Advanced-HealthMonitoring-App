@@ -25,7 +25,13 @@ import { clearSession, hashPassword, issueSession, requireAuth, verifyPassword }
 import { importRequestSchema } from '../shared/import.js';
 import { generateInsights } from './insights.js';
 import { getStorage } from './storage/index.js';
-import { DEMO_PASSWORD, DEMO_USERNAME, addDays, todayIso } from './storage/seed.js';
+import {
+  DEMO_PASSWORD,
+  DEMO_USERNAME,
+  SAMPLE_USERNAMES,
+  addDays,
+  todayIso,
+} from './storage/seed.js';
 
 /** Wraps an async handler so rejections reach the error middleware. */
 const h =
@@ -414,7 +420,13 @@ export function createRouter(): Router {
       const storage = await getStorage();
       const challenge = await storage.getChallenge(id);
       if (!challenge) throw new HttpError(404, 'That challenge does not exist.');
-      res.json({ challenge, leaderboard: await storage.getLeaderboard(id) });
+      // Flag the seeded pace-setters here rather than in each storage
+      // implementation, so the two backends cannot disagree about it.
+      const leaderboard = (await storage.getLeaderboard(id)).map((row) => ({
+        ...row,
+        isSample: SAMPLE_USERNAMES.has(row.username),
+      }));
+      res.json({ challenge, leaderboard });
     }),
   );
 

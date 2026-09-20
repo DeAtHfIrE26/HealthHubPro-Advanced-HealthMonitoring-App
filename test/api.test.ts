@@ -558,6 +558,18 @@ describe('challenges', () => {
     }
   });
 
+  it('marks the generated pace-setters and does not mark a real account', async () => {
+    const cookie = await signInAsDemo();
+    await request(app).post('/api/challenges/1/join').set('Cookie', cookie);
+
+    const res = await request(app).get('/api/challenges/1/leaderboard').set('Cookie', cookie);
+    const rows: Array<{ username: string; isSample: boolean }> = res.body.leaderboard;
+
+    expect(rows.filter((r) => r.isSample).length).toBeGreaterThan(0);
+    // The signed-in human is never labelled a sample.
+    expect(rows.find((r) => r.username === DEMO_USERNAME)?.isSample).toBe(false);
+  });
+
   it('never exposes a password hash on the leaderboard', async () => {
     const cookie = await signInAsDemo();
     const res = await request(app).get('/api/challenges/1/leaderboard').set('Cookie', cookie);

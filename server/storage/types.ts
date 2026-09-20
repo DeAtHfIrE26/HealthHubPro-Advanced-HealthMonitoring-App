@@ -6,7 +6,7 @@ import type {
   Difficulty,
   Goal,
   GoalType,
-  LeaderboardRow,
+  LeaderboardEntry,
   User,
   Workout,
   WorkoutSession,
@@ -90,7 +90,7 @@ export interface Storage {
   leaveChallenge(challengeId: number, userId: number): Promise<void>;
   countParticipants(challengeId: number): Promise<number>;
   /** Ranked, highest progress first. Progress is derived, never cached. */
-  getLeaderboard(challengeId: number): Promise<LeaderboardRow[]>;
+  getLeaderboard(challengeId: number): Promise<LeaderboardEntry[]>;
   getChallengeProgress(challenge: Challenge, userId: number): Promise<number>;
 }
 
