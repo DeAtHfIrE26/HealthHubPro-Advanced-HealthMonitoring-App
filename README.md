@@ -26,6 +26,15 @@ You never need them. The login screen has a **Try the demo** button that opens a
 | **Workouts**   | A catalogue filterable by type, difficulty and free text. Start a session, watch a live timer, finish it — calories are estimated from elapsed time against the workout's burn rate.                |
 | **Challenges** | Join step, calorie, active-minute and workout-count challenges. Leaderboards rank every participant and refresh while you watch.                                                                    |
 | **Insights**   | Rule-based recommendations derived from your last 14 days. Each card names the data behind it.                                                                                                      |
+| **Settings**   | Edit your profile and the five daily goals. Import your history from an Apple Health `export.xml` or a CSV from Google Fit, Fitbit or a spreadsheet. Export everything back out as JSON or CSV.     |
+
+### Bringing your own data in, and taking it back out
+
+Settings takes an Apple Health `export.xml` or a CSV and turns it into daily totals: steps, calories, active minutes, sleep and water. Large exports are read **in your browser**, in 4MB slices — a multi-hundred-megabyte Apple Health file never leaves your machine, only the day totals are uploaded. You see a preview first: how many days, which date range, which metrics were found, and which rows could not be read and why. Nothing is written until you press the button.
+
+When a day already has data you choose what happens. **Keep what I logged** (the default) only fills metrics that are currently empty, so an import can never quietly overwrite something you typed. **Replace with the file** lets the imported values win, and says so before you commit.
+
+Export is the same data in reverse, and it is not a lock-in gesture: JSON carries your profile, goals, full activity history, workout sessions and joined challenges; CSV is the daily activity series. Neither contains your password hash.
 
 ### About the "AI"
 

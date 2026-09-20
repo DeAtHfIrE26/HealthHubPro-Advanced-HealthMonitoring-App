@@ -1,10 +1,10 @@
 # Testing
 
-**166 unit and integration tests + 58 end-to-end tests.** All passing as of 2026-09-20.
+**229 unit and integration tests + 84 end-to-end tests.** All passing as of 2026-09-20.
 
 ```bash
-npm test          # 166 passed, 7 skipped (Postgres, needs DATABASE_URL)
-npm run test:e2e  # 58 passed across desktop and mobile
+npm test          # 229 passed, 7 skipped (Postgres, needs DATABASE_URL)
+npm run test:e2e  # 84 passed across desktop and mobile
 ```
 
 For context: before this work the test suite could not execute at all. `npm test` crashed on `ReferenceError: module is not defined in ES module scope` — the Jest config used CommonJS under `"type": "module"` — and the Cypress specs targeted pages that did not exist.
@@ -13,15 +13,16 @@ For context: before this work the test suite could not execute at all. `npm test
 
 ## What is covered
 
-### Unit — 93 tests
+### Unit — 126 tests
 
-| Area              | File                            | Covers                                                                                                                                                                                                                                              |
-| ----------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema validation | `shared/schema.test.ts`         | Username rules, password length boundaries, email normalisation, unicode names, unknown-key rejection, invalid calendar dates (`2026-02-31`, `2026-04-31`), exact upper bounds, fractional-vs-integer metrics, privilege-escalation-shaped payloads |
-| Insight engine    | `server/insights.test.ts`       | Every rule's trigger and non-trigger, priority ordering, the five-insight cap, determinism for identical input, all-zero days without `NaN`/`Infinity`, single-day and empty history                                                                |
-| Formatting        | `client/src/lib/format.test.ts` | Duration boundaries (59s/60s/3599s/3600s/86399s), local-vs-UTC date parsing, relative days, pluralisation, unicode initials, empty strings                                                                                                          |
+| Area              | File                                    | Covers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema validation | `shared/schema.test.ts`                 | Username rules, password length boundaries, email normalisation, unicode names, unknown-key rejection, invalid calendar dates (`2026-02-31`, `2026-04-31`), exact upper bounds, fractional-vs-integer metrics, privilege-escalation-shaped payloads                                                                                                                                                                                                                                                                                      |
+| Insight engine    | `server/insights.test.ts`               | Every rule's trigger and non-trigger, priority ordering, the five-insight cap, determinism for identical input, all-zero days without `NaN`/`Infinity`, single-day and empty history                                                                                                                                                                                                                                                                                                                                                     |
+| Formatting        | `client/src/lib/format.test.ts`         | Duration boundaries (59s/60s/3599s/3600s/86399s), local-vs-UTC date parsing, relative days, pluralisation, unicode initials, empty strings                                                                                                                                                                                                                                                                                                                                                                                               |
+| Import parsers    | `client/src/lib/import/parsers.test.ts` | Apple Health record mapping, kJ→kcal and mL→L conversion, sleep derived from record duration, `InBed` records excluded, unmapped types skipped, unreadable values reported rather than dropped, wrong-XML and empty-file handling, the 24h sleep cap, and a 5,000-record file reassembled across 4MB read chunks. CSV column aliases for Google Fit / Fitbit / Garmin, quoted thousands separators, three date layouts, repeated rows summed, blank cells left unset, CRLF, and every failure message naming the columns it actually saw |
 
-### Integration — 73 tests
+### Integration — 103 tests
 
 `test/api.test.ts` drives the real Express app through Supertest. Every route is covered for happy path, invalid input, unauthorised access and not-found. Beyond the obvious:
 
@@ -34,13 +35,25 @@ For context: before this work the test suite could not execute at all. `npm test
 - **Derived progress** — logging activity moves challenge progress without touching a counter.
 - **Malformed bodies** — invalid JSON returns 400, oversized bodies 413.
 
-### End-to-end — 58 tests (29 × desktop, 29 × mobile)
+`test/import.test.ts` covers the import and export routes, with most of its attention on the one operation that can destroy data:
 
-`e2e/auth.spec.ts` and `e2e/app.spec.ts`, run with Playwright **against the production build**, not the dev server.
+- **Merge never clobbers** — a hand-logged value survives an import that carries a different number for the same metric; empty metrics on that day are still filled.
+- **Overwrite really overwrites**, including writing a genuine `0`.
+- **Unchanged is not "updated"** — re-importing identical data reports `skipped`, so the summary tells the truth.
+- **Tenancy** — an import writes only to the signed-in user; a second account sees nothing.
+- **Caps and shapes** — empty batches, batches over the 400-day cap, impossible dates, unknown keys and out-of-range values are all rejected with 400.
+- **Export carries no credentials** — neither `passwordHash` nor a bcrypt prefix appears anywhere in the payload, and an unknown `format` is a 400.
+- **Round trip** — data imported from a file comes back out of the export byte-for-byte.
+
+### End-to-end — 84 tests (42 × desktop, 42 × mobile)
+
+`e2e/auth.spec.ts`, `e2e/app.spec.ts` and `e2e/settings.spec.ts`, run with Playwright **against the production build**, not the dev server.
 
 Covered flows: one-click demo, manual sign-in, wrong password, registration with inline validation, sign-out and route protection, redirect away from login when signed in, dashboard render, logging activity, out-of-range rejection, chart metric and range switching, the chart's table view, workout search/filter/clear, the empty state, start-and-finish a session, challenge join/leave, leaderboard, insights (including asserting the "not a language model" disclosure is still present), browser back/forward, deep-link reload, 404, double-submit, theme persistence, the skip link, 360px overflow on four pages, and the pinned mobile navigation.
 
-**Accessibility** is asserted with axe-core on the login, dashboard, challenges and insights pages, failing on any `serious` or `critical` WCAG 2.1 A/AA violation. Failures report the offending node and the measured colours, not just a count.
+`e2e/settings.spec.ts` drives import and export through a real browser with real files on disk: a CSV is previewed before anything is written, merge is shown refusing to overwrite seeded days, overwrite is shown replacing them and the dashboard following, a fresh account takes the whole history, a file with no date column and an unsupported file type each explain themselves, cancel discards the preview, and both downloads are opened and their contents parsed — the JSON asserted to contain the profile, five goals and no `passwordHash`, the CSV asserted to have the right header row.
+
+**Accessibility** is asserted with axe-core on the login, dashboard, challenges, insights and settings pages, failing on any `serious` or `critical` WCAG 2.1 A/AA violation. Failures report the offending node and the measured colours, not just a count.
 
 **Console cleanliness** is asserted on the two highest-traffic paths: zero console errors, zero failed requests.
 
@@ -60,15 +73,17 @@ It checks idempotent schema creation and seeding, case-insensitive user lookup, 
 
 Every one of these was found by a test or a browser run, not by reading code.
 
-| #   | Bug                                                                                                                                                                                                               | Found by                                |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 1   | Malformed JSON returned **500 instead of 400**. body-parser tags its errors and the handler did not recognise them, so bad input looked like a server fault.                                                      | Integration                             |
-| 2   | `--text-subtle` measured **3.46:1** against surface-raised, failing WCAG AA across most of the app. Light mode failed too.                                                                                        | axe-core in E2E                         |
-| 3   | The dialog's entrance animation ended at `transform: none`, **erasing the translate that centres it**. It rendered 253px below a 727px viewport with Save unreachable. Desktop had just enough height to hide it. | E2E mobile project                      |
-| 4   | The dialog scrolled as one block, so its footer could fall below the fold on a short viewport.                                                                                                                    | E2E mobile project                      |
-| 5   | `GET /auth/me` returned **401 for signed-out visitors**, printing a console error on every cold load for a perfectly normal user.                                                                                 | Browser console assertion               |
-| 6   | The rate limiter's 120/min ceiling was low enough that **a fast human could trip it**.                                                                                                                            | E2E flakiness, then a 130-request burst |
-| 7   | An "always-on" nutrition insight fired whenever any activity existed, making it generic filler and the steady-state branch unreachable.                                                                           | Unit                                    |
+| #   | Bug                                                                                                                                                                                                                                                                                                                   | Found by                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 1   | Malformed JSON returned **500 instead of 400**. body-parser tags its errors and the handler did not recognise them, so bad input looked like a server fault.                                                                                                                                                          | Integration                             |
+| 2   | `--text-subtle` measured **3.46:1** against surface-raised, failing WCAG AA across most of the app. Light mode failed too.                                                                                                                                                                                            | axe-core in E2E                         |
+| 3   | The dialog's entrance animation ended at `transform: none`, **erasing the translate that centres it**. It rendered 253px below a 727px viewport with Save unreachable. Desktop had just enough height to hide it.                                                                                                     | E2E mobile project                      |
+| 4   | The dialog scrolled as one block, so its footer could fall below the fold on a short viewport.                                                                                                                                                                                                                        | E2E mobile project                      |
+| 5   | `GET /auth/me` returned **401 for signed-out visitors**, printing a console error on every cold load for a perfectly normal user.                                                                                                                                                                                     | Browser console assertion               |
+| 6   | The rate limiter's 120/min ceiling was low enough that **a fast human could trip it**.                                                                                                                                                                                                                                | E2E flakiness, then a 130-request burst |
+| 7   | An "always-on" nutrition insight fired whenever any activity existed, making it generic filler and the steady-state branch unreachable.                                                                                                                                                                               | Unit                                    |
+| 8   | The import drop zone exposed **two controls with the same purpose** — a visible "Choose a file" button and a screen-reader-only file input labelled "Choose a file to import". A screen reader announced both. Now the input carries the name and the label is its visible face, with the focus ring relayed onto it. | E2E strict-mode locator violation       |
+| 9   | Adding the settings page pushed the entry bundle from **73 kB to 102 kB gzipped** for every visitor, including ones who never open settings. Settings is now lazy-loaded into its own 28.7 kB chunk and the entry is back to 73.8 kB.                                                                                 | Build output                            |
 
 ---
 
