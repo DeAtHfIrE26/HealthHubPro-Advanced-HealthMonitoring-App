@@ -301,9 +301,7 @@ export class PostgresStorage implements Storage {
     const rows = await this.db
       .select()
       .from(activityStats)
-      .where(
-        and(eq(activityStats.userId, userId), between(activityStats.date, startDate, endDate)),
-      )
+      .where(and(eq(activityStats.userId, userId), between(activityStats.date, startDate, endDate)))
       .orderBy(asc(activityStats.date));
 
     const byDate = new Map(rows.map((r) => [r.date, r]));

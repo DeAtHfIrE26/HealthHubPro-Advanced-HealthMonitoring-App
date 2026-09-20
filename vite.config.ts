@@ -20,15 +20,28 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'wouter'],
-          charts: ['recharts'],
+        // Split the charting library out: it is only needed on the dashboard,
+        // and it is by far the largest single dependency.
+        manualChunks(id: string) {
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+            return 'charts';
+          }
+          if (/node_modules\/(react|react-dom|scheduler|wouter)\//.test(id)) {
+            return 'react';
+          }
+          return undefined;
         },
       },
     },
   },
   server: {
     port: 5173,
+    proxy: {
+      '/api': { target: 'http://localhost:5000', changeOrigin: true },
+    },
+  },
+  preview: {
+    port: 4173,
     proxy: {
       '/api': { target: 'http://localhost:5000', changeOrigin: true },
     },

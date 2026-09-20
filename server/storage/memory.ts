@@ -43,7 +43,8 @@ export class MemoryStorage implements Storage {
   private workouts: Workout[] = [];
   private sessions: WorkoutSession[] = [];
   private challenges: Challenge[] = [];
-  private participants: Array<{ id: number; challengeId: number; userId: number; joinedAt: Date }> = [];
+  private participants: Array<{ id: number; challengeId: number; userId: number; joinedAt: Date }> =
+    [];
   private initialised = false;
 
   async init(): Promise<void> {
@@ -360,7 +361,9 @@ export class MemoryStorage implements Storage {
           ? 'calories'
           : 'activeMinutes';
     return this.activity
-      .filter((a) => a.userId === userId && withinRange(a.date, challenge.startDate, challenge.endDate))
+      .filter(
+        (a) => a.userId === userId && withinRange(a.date, challenge.startDate, challenge.endDate),
+      )
       .reduce((sum, a) => sum + a[field], 0);
   }
 

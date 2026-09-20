@@ -70,7 +70,10 @@ export const activityStats = pgTable(
     sleepHours: real('sleep_hours').notNull().default(0),
     waterLiters: real('water_liters').notNull().default(0),
   },
-  (t) => [unique('activity_stats_user_date').on(t.userId, t.date), index('activity_stats_user_idx').on(t.userId)],
+  (t) => [
+    unique('activity_stats_user_date').on(t.userId, t.date),
+    index('activity_stats_user_idx').on(t.userId),
+  ],
 );
 
 export const goals = pgTable(

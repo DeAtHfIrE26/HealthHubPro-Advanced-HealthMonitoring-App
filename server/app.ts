@@ -86,7 +86,9 @@ export function createApp(): express.Express {
     console.error('[unhandled]', error);
     res.status(500).json({
       error: 'Something went wrong on our end.',
-      ...(env.isProduction ? {} : { detail: error instanceof Error ? error.message : String(error) }),
+      ...(env.isProduction
+        ? {}
+        : { detail: error instanceof Error ? error.message : String(error) }),
     });
   });
 

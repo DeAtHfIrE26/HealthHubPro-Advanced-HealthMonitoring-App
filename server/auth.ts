@@ -61,11 +61,7 @@ declare global {
 }
 
 /** Attaches req.user when a valid session cookie is present. Never rejects. */
-export async function attachUser(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> {
+export async function attachUser(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
     const id = readUserId(req);
     if (id !== null) {

@@ -1,4 +1,10 @@
-import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from 'express';
 import { z } from 'zod';
 import {
   finishSessionSchema,
@@ -55,7 +61,13 @@ function parseId(raw: string | undefined): number {
 /** Today's value for a goal type, read from that day's activity row. */
 function currentForGoal(
   type: GoalProgress['type'],
-  today: { steps: number; calories: number; activeMinutes: number; sleepHours: number; waterLiters: number } | null,
+  today: {
+    steps: number;
+    calories: number;
+    activeMinutes: number;
+    sleepHours: number;
+    waterLiters: number;
+  } | null,
 ): number {
   if (!today) return 0;
   switch (type) {
@@ -160,7 +172,10 @@ export function createRouter(): Router {
       if (!user) throw new HttpError(503, 'The demo account is unavailable.');
 
       issueSession(res, user.id);
-      res.json({ user: toPublicUser(user), credentials: { username: DEMO_USERNAME, password: DEMO_PASSWORD } });
+      res.json({
+        user: toPublicUser(user),
+        credentials: { username: DEMO_USERNAME, password: DEMO_PASSWORD },
+      });
     }),
   );
 
@@ -169,12 +184,14 @@ export function createRouter(): Router {
     res.json({ ok: true });
   });
 
+  /*
+   * Answers 200 with user:null when signed out. "Am I signed in?" is a
+   * question, not an error - returning 401 made every cold page load print a
+   * console error for a completely normal visitor. Protected routes still
+   * return 401 via requireAuth.
+   */
   router.get('/auth/me', (req, res) => {
-    if (!req.user) {
-      res.status(401).json({ error: 'Not signed in.' });
-      return;
-    }
-    res.json({ user: toPublicUser(req.user) });
+    res.json({ user: req.user ? toPublicUser(req.user) : null });
   });
 
   /* ---------------------------------------------------------------- users */
@@ -340,7 +357,9 @@ export function createRouter(): Router {
 
       const workout = await storage.getWorkout(existing.workoutId);
       const estimated = workout
-        ? Math.round((workout.caloriesBurn / Math.max(1, workout.durationMin * 60)) * input.elapsedSec)
+        ? Math.round(
+            (workout.caloriesBurn / Math.max(1, workout.durationMin * 60)) * input.elapsedSec,
+          )
         : 0;
 
       const session = await storage.finishSession(id, {
@@ -367,16 +386,16 @@ export function createRouter(): Router {
             storage.countParticipants(challenge.id),
             storage.isParticipant(challenge.id, req.user!.id),
           ]);
-          const progress = joined
-            ? await storage.getChallengeProgress(challenge, req.user!.id)
-            : 0;
+          const progress = joined ? await storage.getChallengeProgress(challenge, req.user!.id) : 0;
           return {
             ...challenge,
             participantCount,
             joined,
             progress,
             percent:
-              challenge.target > 0 ? Math.min(100, Math.round((progress / challenge.target) * 100)) : 0,
+              challenge.target > 0
+                ? Math.min(100, Math.round((progress / challenge.target) * 100))
+                : 0,
             daysLeft: Math.max(0, daysBetween(today, challenge.endDate)),
           };
         }),

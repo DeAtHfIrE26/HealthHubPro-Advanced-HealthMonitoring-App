@@ -1,81 +1,42 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { RotateCw } from 'lucide-react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
+type Props = { children: ReactNode };
+type State = { error: Error | null };
 
-interface State {
-  hasError: boolean;
-  error?: Error;
-  errorInfo?: ErrorInfo;
-}
-
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
+/** Last line of defence: keeps a render crash from showing a blank page. */
+export class ErrorBoundary extends Component<Props, State> {
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-    this.setState({ error, errorInfo });
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('Render error:', error, info.componentStack);
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
-  };
+  override render(): ReactNode {
+    const { error } = this.state;
+    if (!error) return this.props.children;
 
-  render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center p-8 max-w-md">
-            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Oops! Something went wrong</h1>
-            <p className="text-gray-600 mb-6">
-              We're sorry, but something unexpected happened. Please try refreshing the page.
-            </p>
-            <div className="space-y-2">
-              <Button onClick={this.handleReset} className="w-full">
-                Try Again
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.reload()} 
-                className="w-full"
-              >
-                Reload Page
-              </Button>
-            </div>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-4 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500">
-                  Error Details (Development)
-                </summary>
-                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
-                  {this.state.error.toString()}
-                  {this.state.errorInfo?.componentStack}
-                </pre>
-              </details>
-            )}
-          </div>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="font-display text-2xl font-semibold">Something broke</h1>
+          <p className="mt-2 text-sm text-text-muted">
+            An unexpected error stopped the page from rendering. Reloading usually clears it.
+          </p>
+          <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-surface p-3 text-left text-xs text-text-subtle">
+            {error.message}
+          </pre>
+          <Button className="mt-5" onClick={() => window.location.reload()}>
+            <RotateCw aria-hidden="true" />
+            Reload page
+          </Button>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
 }
-
-export default ErrorBoundary;

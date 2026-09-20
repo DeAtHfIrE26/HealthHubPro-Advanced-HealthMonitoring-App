@@ -2,18 +2,18 @@
 
 <div align="center">
   <img src="generated-icon.png" alt="HealthHubPro Logo" width="200"/>
-  
+
   <p>
     <b>A comprehensive health and fitness tracking platform with AI-powered recommendations</b>
   </p>
-  
+
   <p>
     <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/stargazers"><img src="https://img.shields.io/github/stars/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Stars Badge"/></a>
     <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/network/members"><img src="https://img.shields.io/github/forks/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Forks Badge"/></a>
     <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/issues"><img src="https://img.shields.io/github/issues/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Issues Badge"/></a>
     <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/blob/main/LICENSE"><img src="https://img.shields.io/github/license/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="License Badge"/></a>
   </p>
-  
+
   <p>
     <a href="#demo">View Demo</a>
     ·
@@ -117,11 +117,13 @@ HealthHubPro is a modern health and fitness tracking application designed to hel
 </div>
 
 ### AI & Machine Learning
+
 - **TensorFlow.js** for client-side ML models
 - **OpenAI API** integration for personalized recommendations
 - **Custom ML models** for activity pattern recognition
 
 ### Testing & Quality Assurance
+
 - **Jest** for unit and integration testing
 - **Cypress** for end-to-end testing
 - **Artillery** and **K6** for load testing
@@ -177,25 +179,29 @@ HealthHubPro follows a modern microservices architecture with:
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git
    cd HealthHubPro-Advanced-HealthMonitoring-App
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Set up environment variables:
+
    ```bash
    # Copy the example .env file
    cp .env.example .env
-   
+
    # Edit the .env file with your configuration
    ```
 
 4. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -222,36 +228,43 @@ docker run -p 3000:3000 -d healthhubpro
 The application provides the following API endpoints:
 
 ### Authentication
+
 - `POST /api/auth/register`: Register a new user
 - `POST /api/auth/login`: Login a user
 - `GET /api/auth/csrf-token`: Get a CSRF token
 
 ### Users
+
 - `GET /api/users/:id`: Get user details
 - `PATCH /api/users/:id`: Update user details
 
 ### Activity Stats
+
 - `GET /api/activity-stats/:userId`: Get activity stats for a user
 - `POST /api/activity-stats`: Create activity stats
 - `PATCH /api/activity-stats/:id`: Update activity stats
 
 ### Goals
+
 - `GET /api/goals/:userId`: Get goals for a user
 - `POST /api/goals`: Create a goal
 - `PATCH /api/goals/:id`: Update a goal
 
 ### Workouts
+
 - `GET /api/workouts`: Get all workouts
 - `GET /api/workouts/:id`: Get workout details
 - `POST /api/workouts`: Create a workout
 - `GET /api/ai/workout-plan`: Get an AI-generated workout plan
 
 ### Workout Sessions
+
 - `GET /api/workout-sessions/:userId`: Get workout sessions for a user
 - `POST /api/workout-sessions`: Create a workout session
 - `PATCH /api/workout-sessions/:id`: Update a workout session
 
 ### Challenges
+
 - `GET /api/challenges`: Get all challenges
 - `GET /api/challenges/:id`: Get challenge details
 - `POST /api/challenges`: Create a challenge
@@ -261,6 +274,7 @@ The application provides the following API endpoints:
 - `GET /api/user-challenges/:userId`: Get challenges for a user
 
 ### Recommendations
+
 - `GET /api/recommendations/:userId`: Get recommendations for a user
 - `POST /api/recommendations/:userId`: Create a recommendation
 - `PATCH /api/recommendations/:id/feedback`: Update recommendation feedback
@@ -285,6 +299,7 @@ kubectl apply -f k8s/production/
 ### Monitoring
 
 Kubernetes monitoring is set up with:
+
 - Prometheus for metrics collection
 - Grafana for visualization
 - Alert Manager for notifications

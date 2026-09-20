@@ -150,7 +150,7 @@ const WORKOUTS: SeedWorkout[] = [
     exercises: [
       { name: 'Sun salutation A', sets: 3, reps: 5 },
       { name: 'Low lunge', sets: 2, reps: 8 },
-      { name: "Pigeon pose", sets: 2, reps: 6 },
+      { name: 'Pigeon pose', sets: 2, reps: 6 },
     ],
   },
   {
@@ -237,7 +237,11 @@ const COMPANIONS = [
 ];
 
 /** One day of plausible activity. Weekends skew higher; Mondays lower. */
-function dayActivity(rng: () => number, date: string, bias: number): Omit<SeedActivity, 'username'> {
+function dayActivity(
+  rng: () => number,
+  date: string,
+  bias: number,
+): Omit<SeedActivity, 'username'> {
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
   const weekendLift = weekday === 0 || weekday === 6 ? 1.25 : 1;
   const mondaySlump = weekday === 1 ? 0.82 : 1;
@@ -343,11 +347,41 @@ export async function buildSeed(today: string = todayIso()): Promise<SeedData> {
   ];
 
   const sessions: SeedData['sessions'] = [
-    { username: DEMO_USERNAME, workoutName: 'Full Body Strength', daysAgo: 1, elapsedSec: 2_610, caloriesBurned: 328 },
-    { username: DEMO_USERNAME, workoutName: 'Evening Yoga Flow', daysAgo: 2, elapsedSec: 1_800, caloriesBurned: 118 },
-    { username: DEMO_USERNAME, workoutName: 'HIIT Burner', daysAgo: 4, elapsedSec: 1_215, caloriesBurned: 296 },
-    { username: DEMO_USERNAME, workoutName: 'Tempo Run Intervals', daysAgo: 6, elapsedSec: 2_340, caloriesBurned: 401 },
-    { username: DEMO_USERNAME, workoutName: 'Mobility Reset', daysAgo: 8, elapsedSec: 900, caloriesBurned: 68 },
+    {
+      username: DEMO_USERNAME,
+      workoutName: 'Full Body Strength',
+      daysAgo: 1,
+      elapsedSec: 2_610,
+      caloriesBurned: 328,
+    },
+    {
+      username: DEMO_USERNAME,
+      workoutName: 'Evening Yoga Flow',
+      daysAgo: 2,
+      elapsedSec: 1_800,
+      caloriesBurned: 118,
+    },
+    {
+      username: DEMO_USERNAME,
+      workoutName: 'HIIT Burner',
+      daysAgo: 4,
+      elapsedSec: 1_215,
+      caloriesBurned: 296,
+    },
+    {
+      username: DEMO_USERNAME,
+      workoutName: 'Tempo Run Intervals',
+      daysAgo: 6,
+      elapsedSec: 2_340,
+      caloriesBurned: 401,
+    },
+    {
+      username: DEMO_USERNAME,
+      workoutName: 'Mobility Reset',
+      daysAgo: 8,
+      elapsedSec: 900,
+      caloriesBurned: 68,
+    },
   ];
 
   return { users, workouts: WORKOUTS, challenges, activity, goals, participants, sessions };
