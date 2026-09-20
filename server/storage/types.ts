@@ -1,3 +1,4 @@
+import type { ImportDay, ImportResult } from '../../shared/import.js';
 import type {
   ActivityStat,
   Challenge,
@@ -56,6 +57,16 @@ export interface Storage {
   upsertActivity(userId: number, date: string, patch: ActivityPatch): Promise<ActivityStat>;
   /** Oldest-first, exactly `days` entries ending at `endDate`, zero-filled. */
   getActivityHistory(userId: number, days: number, endDate: string): Promise<ActivityStat[]>;
+
+  /** Bulk import. `merge` only fills metrics currently at zero. */
+  bulkUpsertActivity(
+    userId: number,
+    days: ImportDay[],
+    strategy: 'merge' | 'overwrite',
+  ): Promise<ImportResult>;
+
+  /** Every activity row for the user, oldest first. Used by export. */
+  getAllActivity(userId: number): Promise<ActivityStat[]>;
 
   getGoals(userId: number): Promise<Goal[]>;
   upsertGoal(userId: number, type: GoalType, target: number): Promise<Goal>;

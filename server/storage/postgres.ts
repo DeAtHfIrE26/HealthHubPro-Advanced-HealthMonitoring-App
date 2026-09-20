@@ -27,7 +27,9 @@ import {
   workoutSessions,
   workouts,
 } from '../../shared/schema.js';
+import type { ImportDay, ImportResult } from '../../shared/import.js';
 import { addDays, buildSeed, todayIso } from './seed.js';
+import { rangeOf, resolveMerge } from './memory.js';
 import type {
   ActivityPatch,
   NewUser,
@@ -322,6 +324,90 @@ export class PostgresStorage implements Storage {
       );
     }
     return out;
+  }
+
+  async bulkUpsertActivity(
+    userId: number,
+    days: ImportDay[],
+    strategy: 'merge' | 'overwrite',
+  ): Promise<ImportResult> {
+    if (days.length === 0) return { created: 0, updated: 0, skipped: 0, range: null };
+
+    // Read the affected window once rather than per row: the merge decision
+    // needs to know what is already stored, and N round trips over an HTTP
+    // driver would be unusably slow for a multi-year import.
+    const dates = days.map((d) => d.date).sort();
+    const existingRows = await this.db
+      .select()
+      .from(activityStats)
+      .where(
+        and(
+          eq(activityStats.userId, userId),
+          between(activityStats.date, dates[0]!, dates[dates.length - 1]!),
+        ),
+      );
+    const existingByDate = new Map(existingRows.map((r) => [r.date, r]));
+
+    const toWrite: Array<typeof activityStats.$inferInsert> = [];
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const { date, ...metrics } of days) {
+      const existing = existingByDate.get(date);
+
+      if (!existing) {
+        toWrite.push({
+          userId,
+          date,
+          steps: metrics.steps ?? 0,
+          calories: metrics.calories ?? 0,
+          activeMinutes: metrics.activeMinutes ?? 0,
+          sleepHours: metrics.sleepHours ?? 0,
+          waterLiters: metrics.waterLiters ?? 0,
+        });
+        created += 1;
+        continue;
+      }
+
+      const patch = resolveMerge(existing, metrics, strategy);
+      if (Object.keys(patch).length === 0) {
+        skipped += 1;
+        continue;
+      }
+
+      toWrite.push({ ...existing, ...patch, userId, date });
+      updated += 1;
+    }
+
+    // Neon's HTTP driver caps statement size, so write in batches.
+    const BATCH = 100;
+    for (let i = 0; i < toWrite.length; i += BATCH) {
+      const slice = toWrite.slice(i, i + BATCH);
+      await this.db
+        .insert(activityStats)
+        .values(slice)
+        .onConflictDoUpdate({
+          target: [activityStats.userId, activityStats.date],
+          set: {
+            steps: sql`excluded.steps`,
+            calories: sql`excluded.calories`,
+            activeMinutes: sql`excluded.active_minutes`,
+            sleepHours: sql`excluded.sleep_hours`,
+            waterLiters: sql`excluded.water_liters`,
+          },
+        });
+    }
+
+    return { created, updated, skipped, range: rangeOf(toWrite.map((r) => r.date as string)) };
+  }
+
+  async getAllActivity(userId: number): Promise<ActivityStat[]> {
+    return this.db
+      .select()
+      .from(activityStats)
+      .where(eq(activityStats.userId, userId))
+      .orderBy(asc(activityStats.date));
   }
 
   /* ---------------------------------------------------------------- goals */
