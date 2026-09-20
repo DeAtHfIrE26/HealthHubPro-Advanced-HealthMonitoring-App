@@ -10,7 +10,7 @@ import type {
   Workout,
   WorkoutSession,
   WorkoutType,
-} from '../../shared/schema';
+} from '../../shared/schema.js';
 
 export type NewUser = {
   username: string;

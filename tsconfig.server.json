@@ -6,7 +6,9 @@
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["shared/*"]
-    }
+    },
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "include": ["server", "api", "shared", "test"],
   "exclude": ["test/setup.client.ts"]

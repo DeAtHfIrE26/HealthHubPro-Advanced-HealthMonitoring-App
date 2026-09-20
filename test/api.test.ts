@@ -8,10 +8,10 @@
 import type { Express } from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../server/app';
-import { setStorageForTesting } from '../server/storage';
-import { MemoryStorage } from '../server/storage/memory';
-import { DEMO_PASSWORD, DEMO_USERNAME, todayIso } from '../server/storage/seed';
+import { createApp } from '../server/app.js';
+import { setStorageForTesting } from '../server/storage/index.js';
+import { MemoryStorage } from '../server/storage/memory.js';
+import { DEMO_PASSWORD, DEMO_USERNAME, todayIso } from '../server/storage/seed.js';
 
 let app: Express;
 

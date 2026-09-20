@@ -12,7 +12,7 @@ import type {
   Exercise,
   GoalType,
   WorkoutType,
-} from '../../shared/schema';
+} from '../../shared/schema.js';
 
 export const DEMO_USERNAME = 'demo';
 export const DEMO_PASSWORD = 'demo1234';

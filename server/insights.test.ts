@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ActivityStat, Goal } from '../shared/schema';
-import { generateInsights } from './insights';
+import type { ActivityStat, Goal } from '../shared/schema.js';
+import { generateInsights } from './insights.js';
 
 let nextId = 1;
 

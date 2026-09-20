@@ -1,4 +1,4 @@
-import type { Storage } from './types';
+import type { Storage } from './types.js';
 
 let instance: Storage | null = null;
 let initPromise: Promise<Storage> | null = null;
@@ -7,13 +7,13 @@ async function create(): Promise<Storage> {
   const url = process.env.DATABASE_URL?.trim();
 
   if (url) {
-    const { PostgresStorage } = await import('./postgres');
+    const { PostgresStorage } = await import('./postgres.js');
     const storage = new PostgresStorage(url);
     await storage.init();
     return storage;
   }
 
-  const { MemoryStorage } = await import('./memory');
+  const { MemoryStorage } = await import('./memory.js');
   const storage = new MemoryStorage();
   await storage.init();
   return storage;

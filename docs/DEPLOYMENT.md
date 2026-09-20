@@ -2,14 +2,11 @@
 
 ## Status
 
-The application builds cleanly and is ready to deploy. **Two one-time actions on the Vercel account are outstanding**, because the build environment's Vercel credentials are read-only:
+**Live:** https://health-hub-pro-advanced-health-monitoring-deathfire26s-projects.vercel.app
 
-| #   | Action                                              | Why it is needed                                                                                                      |
-| --- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 1   | Set `SESSION_SECRET`                                | The app refuses to run in production without it and returns a 503 naming the variable.                                |
-| 2   | Turn **off** Vercel Authentication (SSO protection) | It is currently enabled for production URLs and all previews, so visitors hit a Vercel login wall instead of the app. |
+Both prerequisites are done — `SESSION_SECRET` is set for Production, Preview and Development, and Vercel Authentication is disabled, so the URL is publicly reachable. `GET /api/health` returns `{"status":"ok","persistent":false}`.
 
-Both take about two minutes. Step-by-step instructions are below.
+`persistent: false` means no database is attached: the app runs on seeded in-memory storage and shows a `Demo mode` badge. Adding `DATABASE_URL` (see below) makes it persistent with no code change.
 
 ---
 

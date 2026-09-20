@@ -3,9 +3,9 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { attachUser } from './auth';
-import { env, getConfigError } from './env';
-import { createRouter, HttpError } from './routes';
+import { attachUser } from './auth.js';
+import { env, getConfigError } from './env.js';
+import { createRouter, HttpError } from './routes.js';
 
 /**
  * Rejects cross-site mutations.
