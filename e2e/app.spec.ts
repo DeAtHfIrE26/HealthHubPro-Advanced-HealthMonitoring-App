@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoA11yViolations, signInAsDemo, watchForErrors } from './helpers';
+import { expectNoA11yViolations, signInAsDemo, toastText, watchForErrors } from './helpers';
 
 test.describe('core flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,7 +34,7 @@ test.describe('core flows', () => {
     await dialog.getByLabel(/^Steps/).fill('17500');
     await dialog.getByRole('button', { name: /save activity/i }).click();
 
-    await expect(page.getByText(/activity saved/i).first()).toBeVisible();
+    await expect(toastText(page, /activity saved/i)).toBeVisible();
     // Scoped to the tiles: the same figure also appears in the goal ring and
     // the chart's table view, which would be a strict-mode violation.
     const totals = page.getByRole('region', { name: "Today's totals" });
@@ -60,7 +60,7 @@ test.describe('core flows', () => {
 
     await dialog.getByLabel(/^Steps/).fill('4321');
     await dialog.getByRole('button', { name: /save activity/i }).click();
-    await expect(page.getByText(/activity saved for yesterday/i).first()).toBeVisible();
+    await expect(toastText(page, /activity saved for yesterday/i)).toBeVisible();
 
     // Today is untouched...
     await expect(totals.getByText(/^[\d,]+$/).first()).toHaveText(todayBefore ?? '');
@@ -241,7 +241,7 @@ test.describe('navigation and resilience', () => {
     const save = dialog.getByRole('button', { name: /save activity/i });
     await save.click();
     // The button disables while pending, so a second click cannot double-post.
-    await expect(page.getByText(/activity saved/i).first()).toBeVisible();
+    await expect(toastText(page, /activity saved/i)).toBeVisible();
     const totals = page.getByRole('region', { name: "Today's totals" });
     await expect(totals.getByText('8,888')).toBeVisible();
   });

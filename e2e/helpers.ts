@@ -1,11 +1,25 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Signs in through the one-click demo button and waits for the dashboard. */
 export async function signInAsDemo(page: Page): Promise<void> {
   await page.goto('/login');
   await page.getByRole('button', { name: /try the demo/i }).click();
   await expect(page.getByRole('heading', { name: /hello, demo/i })).toBeVisible();
+}
+
+/**
+ * Text inside the visible toast.
+ *
+ * Radix mirrors every toast into a separate `role="status"` span for assistive
+ * tech, outside the toast viewport and torn down a moment later. A bare
+ * `getByText` therefore matches either one or both depending on timing: locally
+ * the announcer had usually gone by the time the assertion ran, on CI's slower
+ * runner it had not, and the same assertion became a strict-mode violation.
+ * Scoping to the viewport asserts on what a person actually sees.
+ */
+export function toastText(page: Page, text: RegExp | string): Locator {
+  return page.getByRole('region', { name: /notifications/i }).getByText(text);
 }
 
 /** Fails the test if any serious or critical accessibility violation exists. */

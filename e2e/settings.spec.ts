@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { expectNoA11yViolations, signInAsDemo, watchForErrors } from './helpers';
+import { expectNoA11yViolations, signInAsDemo, toastText, watchForErrors } from './helpers';
 
 /** A CSV whose dates end today, so the dashboard can be asserted against it. */
 function writeCsv(days: number, startSteps: number): string {
@@ -59,7 +59,7 @@ test.describe('settings', () => {
 
     await steps.fill(target);
     await page.getByRole('button', { name: 'Save' }).first().click();
-    await expect(page.getByText(/daily steps updated/i).first()).toBeVisible();
+    await expect(toastText(page, /daily steps updated/i)).toBeVisible();
 
     await page.reload();
     await expect(page.getByLabel(/Daily steps/)).toHaveValue(target);
@@ -74,7 +74,7 @@ test.describe('settings', () => {
 
     await height.fill(target);
     await page.getByRole('button', { name: /save profile/i }).click();
-    await expect(page.getByText(/profile saved/i).first()).toBeVisible();
+    await expect(toastText(page, /profile saved/i)).toBeVisible();
 
     await page.reload();
     await expect(page.getByLabel('Height')).toHaveValue(target);
@@ -105,7 +105,7 @@ test.describe('import', () => {
     await page.getByRole('button', { name: /^Import 7 days$/ }).click();
 
     // The demo account is seeded for these days, so every one is left alone.
-    await expect(page.getByText(/0 days added, 0 updated, 7 unchanged/)).toBeVisible();
+    await expect(toastText(page, /0 days added, 0 updated, 7 unchanged/)).toBeVisible();
   });
 
   test('overwrite replaces those days and the dashboard follows', async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe('import', () => {
     await page.locator('input[type=file]').setInputFiles(writeCsv(7, 8_000));
     await expect(page.getByText('7 days ready to import')).toBeVisible();
     await page.getByRole('button', { name: /^Import 7 days$/ }).click();
-    await expect(page.getByText(/7 days added/)).toBeVisible();
+    await expect(toastText(page, /7 days added/)).toBeVisible();
 
     await page.locator('input[type=file]').setInputFiles(writeCsv(7, 11_000));
     await expect(page.getByText('7 days ready to import')).toBeVisible();
@@ -126,7 +126,7 @@ test.describe('import', () => {
     await expect(page.getByText(/This replaces existing values/)).toBeVisible();
 
     await page.getByRole('button', { name: /^Import 7 days$/ }).click();
-    await expect(page.getByText(/7 updated/)).toBeVisible();
+    await expect(toastText(page, /7 updated/)).toBeVisible();
 
     await page.goto('/');
     await expect(
@@ -142,7 +142,7 @@ test.describe('import', () => {
     await expect(page.getByText('7 days ready to import')).toBeVisible();
     await page.getByRole('button', { name: /^Import 7 days$/ }).click();
 
-    await expect(page.getByText(/7 days added/)).toBeVisible();
+    await expect(toastText(page, /7 days added/)).toBeVisible();
 
     await page.goto('/');
     await expect(
