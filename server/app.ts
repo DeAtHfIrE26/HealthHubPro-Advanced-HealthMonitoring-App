@@ -62,7 +62,11 @@ export function createApp(): express.Express {
     app.use(
       rateLimit({
         windowMs: 60_000,
-        limit: 120,
+        // Serverless instances do not share this counter and Vercel sits
+        // behind a proxy where many users can present one IP, so this is a
+        // brake on abuse rather than a quota. Kept high enough that a fast
+        // human clicking through the app never trips it.
+        limit: 300,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
         message: { error: 'Too many requests. Try again shortly.' },
@@ -81,6 +85,21 @@ export function createApp(): express.Express {
     if (error instanceof HttpError) {
       res.status(error.status).json({ error: error.message, details: error.details });
       return;
+    }
+
+    // body-parser rejects unparseable or oversized bodies with a tagged
+    // error. Without this they surfaced as a generic 500, which told the
+    // client nothing and looked like a server fault rather than bad input.
+    if (typeof error === 'object' && error !== null && 'type' in error) {
+      const { type } = error as { type: string };
+      if (type === 'entity.parse.failed') {
+        res.status(400).json({ error: 'Request body is not valid JSON.' });
+        return;
+      }
+      if (type === 'entity.too.large') {
+        res.status(413).json({ error: 'Request body is too large.' });
+        return;
+      }
     }
 
     console.error('[unhandled]', error);

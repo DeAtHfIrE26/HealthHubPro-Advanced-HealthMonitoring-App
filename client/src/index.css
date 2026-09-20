@@ -16,8 +16,13 @@
     --border-strong: 220 7% 24%;
 
     --text: 220 14% 96%;
-    --text-muted: 220 8% 62%;
-    --text-subtle: 220 8% 45%;
+    /*
+     * Both tiers clear WCAG AA (4.5:1) against bg, surface and surface-raised.
+     * --text-subtle was 45% and measured 3.46:1 on raised, which axe flagged
+     * as a serious violation across most of the app.
+     */
+    --text-muted: 220 8% 68%;
+    --text-subtle: 220 8% 55%;
 
     --accent: 76 92% 63%;
     --accent-ink: 220 20% 7%;
@@ -49,8 +54,10 @@
     --border-strong: 220 12% 78%;
 
     --text: 220 30% 12%;
-    --text-muted: 220 10% 40%;
-    --text-subtle: 220 9% 52%;
+    /* Muted darkened so the two tiers stay distinguishable once subtle is
+     * dark enough to pass AA on white. */
+    --text-muted: 220 12% 32%;
+    --text-subtle: 220 9% 44%;
 
     --accent: 76 62% 38%;
     --accent-ink: 0 0% 100%;
@@ -141,6 +148,23 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/*
+ * The dialog is centred with a transform, so its entrance animation must end
+ * on that same transform. A generic "rise" keyframe ending at
+ * `transform: none` silently removes the centring and drops the dialog below
+ * the viewport on short screens.
+ */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
 }
 

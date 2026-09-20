@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -99,35 +100,37 @@ export function LogActivityDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} noValidate>
-          {formError ? (
-            <Alert tone="error" className="mb-4">
-              {formError}
-            </Alert>
-          ) : null}
+        <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
+          <DialogBody>
+            {formError ? (
+              <Alert tone="error" className="mb-4">
+                {formError}
+              </Alert>
+            ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {FIELDS.map((field) => (
-              <div key={field.key} className="flex flex-col gap-1.5">
-                <Label htmlFor={`activity-${field.key}`}>
-                  {field.label}
-                  {field.unit ? (
-                    <span className="ml-1 font-normal text-text-subtle">({field.unit})</span>
-                  ) : null}
-                </Label>
-                <Input
-                  id={`activity-${field.key}`}
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  max={field.max}
-                  step={field.step}
-                  value={form[field.key]}
-                  onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
-                />
-              </div>
-            ))}
-          </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {FIELDS.map((field) => (
+                <div key={field.key} className="flex flex-col gap-1.5">
+                  <Label htmlFor={`activity-${field.key}`}>
+                    {field.label}
+                    {field.unit ? (
+                      <span className="ml-1 font-normal text-text-subtle">({field.unit})</span>
+                    ) : null}
+                  </Label>
+                  <Input
+                    id={`activity-${field.key}`}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    max={field.max}
+                    step={field.step}
+                    value={form[field.key]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

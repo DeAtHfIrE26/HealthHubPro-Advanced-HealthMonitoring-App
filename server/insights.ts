@@ -172,7 +172,10 @@ export function generateInsights({ history, goals, recentWorkouts }: InsightInpu
 
   /* ----------------------------------------------------------- nutrition */
 
-  if (calories7 > 0 && active7 > 0) {
+  // Gated on genuinely high training volume. Firing this whenever any
+  // activity exists made it an always-on card that said nothing specific,
+  // which is exactly the filler this engine is meant to avoid.
+  if (calories7 > 0 && active7 >= 45) {
     candidates.push({
       id: 'nutrition-fuelling',
       type: 'nutrition',
