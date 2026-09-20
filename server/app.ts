@@ -4,7 +4,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { attachUser } from './auth';
-import { env } from './env';
+import { env, getConfigError } from './env';
 import { createRouter, HttpError } from './routes';
 
 /**
@@ -73,6 +73,20 @@ export function createApp(): express.Express {
       }),
     );
   }
+
+  // Fail loudly and legibly rather than 500-ing with no explanation.
+  app.use('/api', (_req, res, next) => {
+    const problem = getConfigError();
+    if (!problem) {
+      next();
+      return;
+    }
+    res.status(503).json({
+      error: 'The server is not configured correctly.',
+      variable: problem.variable,
+      detail: problem.message,
+    });
+  });
 
   app.use(attachUser);
   app.use('/api', createRouter());

@@ -1,372 +1,197 @@
-# 🏋️‍♂️ HealthHubPro - Health & Fitness Tracking Application
+# HealthHubPro
 
-<div align="center">
-  <img src="generated-icon.png" alt="HealthHubPro Logo" width="200"/>
+**A health and fitness tracker that turns your own activity data into specific, explainable advice — no black box, no invented numbers.**
 
-  <p>
-    <b>A comprehensive health and fitness tracking platform with AI-powered recommendations</b>
-  </p>
+Log steps, sleep, hydration and workouts; compete on derived leaderboards; and get insights that always tell you which of your numbers produced them.
 
-  <p>
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/stargazers"><img src="https://img.shields.io/github/stars/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Stars Badge"/></a>
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/network/members"><img src="https://img.shields.io/github/forks/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Forks Badge"/></a>
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/issues"><img src="https://img.shields.io/github/issues/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="Issues Badge"/></a>
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/blob/main/LICENSE"><img src="https://img.shields.io/github/license/DeAtHfIrE26/XNL-21BCE0216-FS-2?style=for-the-badge" alt="License Badge"/></a>
-  </p>
-
-  <p>
-    <a href="#demo">View Demo</a>
-    ·
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/issues/new">Report Bug</a>
-    ·
-    <a href="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/issues/new">Request Feature</a>
-  </p>
-</div>
-
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#tech-stack">Tech Stack</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#api-endpoints">API Endpoints</a> •
-  <a href="#deployment">Deployment</a> •
-  <a href="#testing">Testing</a> •
-  <a href="#performance">Performance</a> •
-  <a href="#roadmap">Roadmap</a> •
-  <a href="#license">License</a>
-</p>
-
-<div align="center">
-  <img src="https://github.com/DeAtHfIrE26/XNL-21BCE0216-FS-2/raw/main/attached_assets/demo.gif" alt="HealthHubPro Demo" width="600"/>
-</div>
-
-## 🌟 Key Features
-
-HealthHubPro is a modern health and fitness tracking application designed to help users achieve their wellness goals through:
-
-- **📊 Comprehensive Activity Tracking**
-  - Steps, calories, active minutes, sleep, and water intake
-  - Historical data visualization with interactive charts
-  - Daily, weekly, and monthly progress reports
-
-- **🎯 Smart Goal Setting**
-  - Personalized fitness goals based on user profile
-  - Progress tracking with visual indicators
-  - Achievement celebrations and milestone rewards
-
-- **💪 AI-Powered Workout Plans**
-  - Custom workout plans generated based on fitness level and goals
-  - Video demonstrations for proper form
-  - Adaptive difficulty progression
-
-- **🏆 Social Challenges**
-  - Compete with friends and community members
-  - Leaderboards and achievement badges
-  - Real-time updates on challenge progress
-
-- **🧠 Personalized Recommendations**
-  - AI-generated insights for workout optimization
-  - Nutrition suggestions based on activity levels
-  - Sleep quality improvement recommendations
-
-- **⚡ Real-time Updates**
-  - WebSocket-based live notifications
-  - Instant challenge progress updates
-  - Live activity sharing with friends
-
-## 🛠️ Tech Stack
-
-<div align="center">
-  <table>
-    <tr>
-      <th>Frontend</th>
-      <th>Backend</th>
-      <th>Database</th>
-      <th>DevOps</th>
-    </tr>
-    <tr>
-      <td>
-        <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
-        <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
-        <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS"/>
-        <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
-        <img src="https://img.shields.io/badge/React_Query-FF4154?style=for-the-badge&logo=react-query&logoColor=white" alt="React Query"/>
-        <img src="https://img.shields.io/badge/Recharts-22B5BF?style=for-the-badge&logo=recharts&logoColor=white" alt="Recharts"/>
-      </td>
-      <td>
-        <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js"/>
-        <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express"/>
-        <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
-        <img src="https://img.shields.io/badge/WebSockets-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="WebSockets"/>
-        <img src="https://img.shields.io/badge/Zod-3068B7?style=for-the-badge&logo=zod&logoColor=white" alt="Zod"/>
-      </td>
-      <td>
-        <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
-        <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
-        <img src="https://img.shields.io/badge/InfluxDB-22ADF6?style=for-the-badge&logo=influxdb&logoColor=white" alt="InfluxDB"/>
-        <img src="https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black" alt="Drizzle ORM"/>
-      </td>
-      <td>
-        <img src="https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
-        <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-        <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" alt="GitHub Actions"/>
-        <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx"/>
-      </td>
-    </tr>
-  </table>
-</div>
-
-### AI & Machine Learning
-
-- **TensorFlow.js** for client-side ML models
-- **OpenAI API** integration for personalized recommendations
-- **Custom ML models** for activity pattern recognition
-
-### Testing & Quality Assurance
-
-- **Jest** for unit and integration testing
-- **Cypress** for end-to-end testing
-- **Artillery** and **K6** for load testing
-
-## 🏗️ Architecture
-
-HealthHubPro follows a modern microservices architecture with:
-
-```
-                                 ┌─────────────────┐
-                                 │   Client App    │
-                                 │  (React + Vite) │
-                                 └────────┬────────┘
-                                          │
-                                          ▼
-┌─────────────────┐             ┌─────────────────┐             ┌─────────────────┐
-│  Load Balancer  │◄────────────┤   API Gateway   ├─────────────►  Authentication │
-│     (Nginx)     │             │    (Express)    │             │    Service      │
-└─────────────────┘             └────────┬────────┘             └─────────────────┘
-                                          │
-                 ┌────────────────────────┼────────────────────────┐
-                 │                        │                        │
-                 ▼                        ▼                        ▼
-        ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-        │  Activity Data  │     │  Workout Plan   │     │  Social/Challenge│
-        │    Service      │     │    Service      │     │     Service      │
-        └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-                 │                        │                        │
-                 ▼                        ▼                        ▼
-        ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-        │   PostgreSQL    │     │   TensorFlow    │     │      Redis      │
-        │   (User Data)   │     │   (ML Models)   │     │  (Real-time)    │
-        └─────────────────┘     └─────────────────┘     └─────────────────┘
-                 │                        │                        │
-                 └────────────────────────┼────────────────────────┘
-                                          │
-                                          ▼
-                                 ┌─────────────────┐
-                                 │    InfluxDB     │
-                                 │  (Time Series)  │
-                                 └─────────────────┘
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or higher)
-- npm (v6 or higher)
-- PostgreSQL (optional, can use mock implementation)
-- Redis (optional, can use mock implementation)
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git
-   cd HealthHubPro-Advanced-HealthMonitoring-App
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-
-   ```bash
-   # Copy the example .env file
-   cp .env.example .env
-
-   # Edit the .env file with your configuration
-   ```
-
-4. Start the development server:
-
-   ```bash
-   npm run dev
-   ```
-
-5. Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
-
-### Docker Setup
-
-For containerized deployment:
-
-```bash
-# Build the Docker image
-docker build -t healthhubpro .
-
-# Run the container
-docker run -p 3000:3000 -d healthhubpro
-```
-
-## 📡 API Endpoints
-
-The application provides the following API endpoints:
-
-### Authentication
-
-- `POST /api/auth/register`: Register a new user
-- `POST /api/auth/login`: Login a user
-- `GET /api/auth/csrf-token`: Get a CSRF token
-
-### Users
-
-- `GET /api/users/:id`: Get user details
-- `PATCH /api/users/:id`: Update user details
-
-### Activity Stats
-
-- `GET /api/activity-stats/:userId`: Get activity stats for a user
-- `POST /api/activity-stats`: Create activity stats
-- `PATCH /api/activity-stats/:id`: Update activity stats
-
-### Goals
-
-- `GET /api/goals/:userId`: Get goals for a user
-- `POST /api/goals`: Create a goal
-- `PATCH /api/goals/:id`: Update a goal
-
-### Workouts
-
-- `GET /api/workouts`: Get all workouts
-- `GET /api/workouts/:id`: Get workout details
-- `POST /api/workouts`: Create a workout
-- `GET /api/ai/workout-plan`: Get an AI-generated workout plan
-
-### Workout Sessions
-
-- `GET /api/workout-sessions/:userId`: Get workout sessions for a user
-- `POST /api/workout-sessions`: Create a workout session
-- `PATCH /api/workout-sessions/:id`: Update a workout session
-
-### Challenges
-
-- `GET /api/challenges`: Get all challenges
-- `GET /api/challenges/:id`: Get challenge details
-- `POST /api/challenges`: Create a challenge
-- `GET /api/challenge-participants/:challengeId`: Get participants for a challenge
-- `POST /api/challenge-participants`: Join a challenge
-- `PATCH /api/challenge-participants/:id`: Update challenge progress
-- `GET /api/user-challenges/:userId`: Get challenges for a user
-
-### Recommendations
-
-- `GET /api/recommendations/:userId`: Get recommendations for a user
-- `POST /api/recommendations/:userId`: Create a recommendation
-- `PATCH /api/recommendations/:id/feedback`: Update recommendation feedback
-- `POST /api/ai-insight`: Get a custom AI insight
-
-## 🌐 Deployment
-
-HealthHubPro supports multiple deployment options:
-
-### Kubernetes Deployment
-
-The project includes Kubernetes manifests for production and staging environments:
-
-```bash
-# Deploy to staging
-kubectl apply -f k8s/staging/
-
-# Deploy to production
-kubectl apply -f k8s/production/
-```
-
-### Monitoring
-
-Kubernetes monitoring is set up with:
-
-- Prometheus for metrics collection
-- Grafana for visualization
-- Alert Manager for notifications
-
-## 🧪 Testing
-
-HealthHubPro includes comprehensive testing:
-
-```bash
-# Run all tests
-npm test
-
-# Run backend tests
-npm run test:backend
-
-# Run frontend tests
-npm run test:frontend
-
-# Run end-to-end tests
-npm run test:e2e
-
-# Generate test coverage report
-npm run test:coverage
-```
-
-## 📊 Performance
-
-The application includes load testing configurations:
-
-```bash
-# Run K6 load tests
-npm run load-test:k6
-
-# Run Artillery load tests
-npm run load-test:artillery
-```
-
-## 🗺️ Roadmap
-
-- [ ] Mobile application (React Native)
-- [ ] Wearable device integration
-- [ ] Advanced nutrition tracking
-- [ ] Community forums
-- [ ] Personalized meal planning
-- [ ] Integration with popular fitness apps
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgements
-
-- [React](https://reactjs.org/)
-- [Express](https://expressjs.com/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [TensorFlow.js](https://www.tensorflow.org/js)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Kubernetes](https://kubernetes.io/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [Redis](https://redis.io/)
-- [InfluxDB](https://www.influxdata.com/)
+![Dashboard](docs/screenshots/dashboard.png)
 
 ---
 
-<div align="center">
-  <p>Made with ❤️ by <a href="https://github.com/DeAtHfIrE26">DeAtHfIrE26</a></p>
-  <p>
-    <a href="https://github.com/DeAtHfIrE26"><img src="https://img.shields.io/github/followers/DeAtHfIrE26?label=Follow&style=social" alt="GitHub Follow"/></a>
-  </p>
-</div>
+## Live demo
+
+> **Deployment status:** the application is production-ready and its build is green, but the live URL needs two one-time actions on the Vercel account that could not be performed from the build environment. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — it takes about two minutes.
+
+**Demo credentials — `demo` / `demo1234`**
+
+You never need them. The login screen has a **Try the demo** button that opens a fully populated account in one click: 30 days of activity, five goals, four running challenges with six competitors, and completed workout sessions. No sign-up, ever.
+
+---
+
+## What it does
+
+|                |                                                                                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**  | Today's steps, calories, active minutes, sleep and water, each with a week-on-week delta. Five goal rings. A 7/14/30-day history chart across any metric, with your goal drawn as a reference line. |
+| **Workouts**   | A catalogue filterable by type, difficulty and free text. Start a session, watch a live timer, finish it — calories are estimated from elapsed time against the workout's burn rate.                |
+| **Challenges** | Join step, calorie, active-minute and workout-count challenges. Leaderboards rank every participant and refresh while you watch.                                                                    |
+| **Insights**   | Rule-based recommendations derived from your last 14 days. Each card names the data behind it.                                                                                                      |
+
+### About the "AI"
+
+This project began as a coding-challenge submission that asked for OpenAI and TensorFlow. **It does not use either, and does not claim to.**
+
+The recommendation engine is a deterministic rules engine over your own numbers: it compares this week's step average against last week's, measures the standard deviation of your sleep, counts goal-hit days, and checks training volume against recovery. Every insight carries a `basis` line stating exactly which figures produced it, and the UI says plainly that this is not a language model.
+
+That is a deliberate trade-off. OpenAI has no free tier, so an LLM-backed version could not stay free to run — and a rules engine that explains itself is more useful to a user than an unexplainable sentence that costs money per request.
+
+<details>
+<summary><strong>More screenshots</strong></summary>
+
+**Workouts** — filtering and an in-progress session
+![Workouts](docs/screenshots/workouts.png)
+
+**Challenges** — derived progress and a live leaderboard
+![Challenges](docs/screenshots/challenges.png)
+
+**Insights** — each card shows its basis
+![Insights](docs/screenshots/insights.png)
+
+**Light theme**
+![Light theme](docs/screenshots/dashboard-light.png)
+
+**Mobile (360px)**
+
+<img src="docs/screenshots/mobile.png" alt="Mobile dashboard" width="320" />
+
+</details>
+
+---
+
+## Architecture
+
+```
+Browser
+  │
+  ├── /(.*)      ──▶  dist/            Vite SPA (React 18, wouter, TanStack Query)
+  └── /api/(.*)  ──▶  api/index.ts     The whole Express app, as ONE function
+                          │
+                          ▼
+                   Storage interface
+                    ╱            ╲
+       PostgresStorage          MemoryStorage
+       (Drizzle + Neon)         (seeded, in-process)
+       when DATABASE_URL set    otherwise
+```
+
+**One serverless function, not twenty.** Vercel's Hobby plan caps a deployment at 12 Serverless Functions and this API has about 20 routes, so splitting them per-file would fail the build outright. Vercel documents exporting an Express app as a function's default export, so the entire app mounts once.
+
+**One storage interface, two implementations.** The route layer never knows which backend it is talking to. With `DATABASE_URL` set, data persists in Postgres; without it, the app seeds itself in memory and the header shows an honest `Demo mode` badge. Swapping between them requires no code change, and the integration suite runs against both.
+
+**Progress is derived, never cached.** Challenge standings and goal completion are computed from activity rows on read. There is no counter to drift out of sync.
+
+**No WebSockets.** Serverless functions cannot hold a socket open. The leaderboard polls every five seconds instead — visually identical, no second host to pay for.
+
+---
+
+## Tech stack
+
+| Layer        | Choice                                  | Why                                                                              |
+| ------------ | --------------------------------------- | -------------------------------------------------------------------------------- |
+| Frontend     | React 18 + TypeScript, Vite 8           | Fast builds; strict typing across the client/server boundary via a shared schema |
+| Routing      | wouter                                  | ~2 kB against React Router's ~20 kB for what is a five-route app                 |
+| Server state | TanStack Query                          | Caching, retry policy and polling without hand-rolled effects                    |
+| Styling      | Tailwind + Radix primitives             | Design tokens in CSS variables; Radix supplies the accessibility behaviour       |
+| Charts       | Recharts                                | Lazy-loaded — it is a third of the bundle and the tiles above it matter more     |
+| Backend      | Express 5-style on Express 4            | Mounts unchanged as a single Vercel function                                     |
+| Validation   | Zod                                     | One schema module validates every API boundary and infers the client's types     |
+| Database     | Drizzle + Neon serverless               | HTTP driver suits serverless; Neon's free tier needs no card                     |
+| Auth         | bcrypt + signed httpOnly cookie         | No session store, so it survives cold starts on any instance                     |
+| Tests        | Vitest, Supertest, Playwright, axe-core | Native ESM; E2E runs against the production build                                |
+
+---
+
+## Running it locally
+
+**Requirements:** Node 22 (see `.nvmrc`). Nothing else — no database, no API keys.
+
+```bash
+git clone https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git
+cd HealthHubPro-Advanced-HealthMonitoring-App
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173** and click **Try the demo**.
+
+That is the whole setup. With no `DATABASE_URL`, the app seeds 30 days of activity into memory on boot and shows a `Demo mode` badge so you always know data will reset.
+
+### Optional: persist data
+
+```bash
+cp .env.example .env
+# Set DATABASE_URL to any Postgres connection string.
+# A free Neon database (https://neon.com) needs no card.
+```
+
+The schema is created on first boot and seeded only if the `users` table is empty, so pointing at a fresh database Just Works.
+
+### Scripts
+
+| Command                | What it does                                 |
+| ---------------------- | -------------------------------------------- |
+| `npm run dev`          | API on :5000 and Vite on :5173, concurrently |
+| `npm run build`        | Production client build into `dist/`         |
+| `npm run lint`         | ESLint 9 flat config                         |
+| `npm run format:check` | Prettier                                     |
+| `npm run typecheck`    | `tsc` over client and server projects        |
+| `npm test`             | Vitest — unit + integration                  |
+| `npm run test:e2e`     | Playwright against the production build      |
+| `npm run verify`       | lint → typecheck → test → build              |
+
+---
+
+## Testing
+
+**166 unit and integration tests, 58 end-to-end tests** across a desktop and a mobile viewport. See [`docs/TESTING.md`](docs/TESTING.md) for coverage, what is not covered, and the bugs these suites caught.
+
+```bash
+npm test          # 166 passing, 7 Postgres tests skipped without DATABASE_URL
+npm run test:e2e  # 58 passing across desktop + mobile
+```
+
+The integration suite exercises every route for happy path, bad input, unauthorised access, not-found and ownership — including forged and tampered session cookies, and identical responses for "unknown user" versus "wrong password" so usernames cannot be enumerated.
+
+E2E runs against the **production build**, not the dev server, and every page is scanned with axe-core for serious and critical accessibility violations.
+
+---
+
+## Security
+
+- Passwords hashed with **bcrypt** (cost 10).
+- Sessions are **signed, httpOnly, SameSite=Lax** cookies. No server-side store, so any instance can verify any session.
+- `SESSION_SECRET` is **required in production**. There is no fallback literal; a missing value produces a 503 naming the variable rather than a silent misconfiguration.
+- Route guards reject unauthenticated requests, and session ownership is checked before a workout session can be modified.
+- Profile updates use a **strict allow-list** — unknown keys are rejected, so no field can be set that the schema does not name.
+- Mutations declaring a non-JSON `Content-Type` are refused: that is the only cross-site POST shape that does not require script.
+- No secrets in the repository or its git history, verified across every commit.
+
+Rate limiting is present but deliberately described as a brake rather than a quota: serverless instances do not share the counter, and Vercel's proxy can place many users behind one IP.
+
+---
+
+## Accessibility
+
+Semantic landmarks, a skip link, `aria-current` navigation, labelled inputs with `aria-invalid` and `aria-describedby` on errors, live regions for async results, visible focus rings, and full keyboard operation. Both themes clear **WCAG AA (4.5:1)** on every surface — the tokens were computed against each background rather than eyeballed. The chart's data is also available as a table, so nothing is conveyed by colour alone. All motion respects `prefers-reduced-motion`.
+
+---
+
+## Deliberate omissions
+
+- **Nutrition tracking** — cut. There was no data model, no API and no seed data behind it; it existed only as a nav link. An empty page would be worse than an honest absence.
+- **Kubernetes, Nginx, Prometheus, Grafana** — the original repo carried manifests for infrastructure that never existed and has no free tier. Removed rather than kept as decoration.
+- **Redis and InfluxDB** — both were `console.log` stubs. At this scale Postgres covers both jobs.
+- **WebSockets** — incompatible with serverless; replaced with polling.
+
+---
+
+## Documentation
+
+- [`docs/AUDIT.md`](docs/AUDIT.md) — the read-only audit of the original codebase that scoped this work
+- [`docs/PLAN.md`](docs/PLAN.md) — the plan that came out of it
+- [`docs/TESTING.md`](docs/TESTING.md) — test coverage and known gaps
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — how to deploy, and the free-tier limits in play
+
+## License
+
+MIT — see [LICENSE](LICENSE).
