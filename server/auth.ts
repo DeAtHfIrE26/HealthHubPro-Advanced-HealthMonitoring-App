@@ -1,74 +1,88 @@
-// Mock implementation for authentication middleware
-// In a production environment, you would use actual authentication libraries
+/**
+ * Password hashing and session handling.
+ *
+ * Sessions are a signed, httpOnly cookie carrying the user id — no server-side
+ * session store, which is what makes this work on serverless where every
+ * request may hit a different cold instance.
+ */
+import bcrypt from 'bcryptjs';
+import type { NextFunction, Request, Response } from 'express';
+import type { User } from '../shared/schema';
+import { env } from './env';
+import { getStorage } from './storage';
 
-import express from 'express';
-import { storage } from './storage';
+export const SESSION_COOKIE = 'hhp_session';
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const BCRYPT_ROUNDS = 10;
 
-// Permission levels
-export enum PermissionLevel {
-  READ = 'read',
-  WRITE = 'write',
-  ADMIN = 'admin'
+export function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-// Authentication middleware
-export const authenticate = async (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) => {
-  try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('[MOCK] Authentication would normally happen here');
-      
-      // For mock implementation, we'll set a default user ID
-      (req.session as any).userId = 1;
-      (req.session as any).user = await storage.getUser(1);
-      
-      return next();
+export function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+export function issueSession(res: Response, userId: number): void {
+  res.cookie(SESSION_COOKIE, String(userId), {
+    httpOnly: true,
+    signed: true,
+    sameSite: 'lax',
+    secure: env.isProduction,
+    maxAge: SESSION_MAX_AGE_MS,
+    path: '/',
+  });
+}
+
+export function clearSession(res: Response): void {
+  res.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    signed: true,
+    sameSite: 'lax',
+    secure: env.isProduction,
+    path: '/',
+  });
+}
+
+function readUserId(req: Request): number | null {
+  const raw = req.signedCookies?.[SESSION_COOKIE];
+  if (typeof raw !== 'string') return null;
+  const id = Number.parseInt(raw, 10);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      user?: User;
     }
-    
-    // Extract token
-    const token = authHeader.split(' ')[1];
-    
-    // In a real implementation, you would verify the token
-    // For mock purposes, we'll just set a default user
-    (req.session as any).userId = 1;
-    (req.session as any).user = await storage.getUser(1);
-    
+  }
+}
+
+/** Attaches req.user when a valid session cookie is present. Never rejects. */
+export async function attachUser(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const id = readUserId(req);
+    if (id !== null) {
+      const storage = await getStorage();
+      req.user = (await storage.getUserById(id)) ?? undefined;
+    }
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(401).json({ message: 'Authentication failed' });
+    next(error);
   }
-};
+}
 
-// Authorization middleware
-export const authorize = (resource: string, level: PermissionLevel) => {
-  return async (
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    try {
-      // Get user from session
-      const user = (req.session as any).user;
-      
-      if (!user) {
-        return res.status(401).json({ message: 'Authentication required' });
-      }
-      
-      // In a real implementation, you would check permissions based on user role
-      // For mock purposes, we'll just allow access
-      console.log(`[MOCK] Authorization check for ${resource} with level ${level}`);
-      
-      next();
-    } catch (error) {
-      console.error('Authorization error:', error);
-      res.status(403).json({ message: 'Access denied' });
-    }
-  };
-};
+/** Rejects with 401 unless a valid session is present. */
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: 'Sign in to continue.' });
+    return;
+  }
+  next();
+}
