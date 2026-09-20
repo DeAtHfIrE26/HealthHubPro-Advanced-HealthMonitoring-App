@@ -41,6 +41,46 @@ test.describe('core flows', () => {
     await expect(totals.getByText('17,500')).toBeVisible();
   });
 
+  test('a past day can be corrected without touching today', async ({ page }) => {
+    const totals = page.getByRole('region', { name: "Today's totals" });
+    const todayBefore = await totals
+      .getByText(/^[\d,]+$/)
+      .first()
+      .textContent();
+
+    await page.getByRole('button', { name: /log activity/i }).click();
+    const dialog = page.getByRole('dialog');
+
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    await dialog.getByLabel('Day').fill(yesterday);
+    await expect(dialog.getByText('Yesterday')).toBeVisible();
+
+    // The form has to load that day's stored numbers, not offer zeroes.
+    await expect(dialog.getByLabel(/^Steps/)).not.toHaveValue('0');
+
+    await dialog.getByLabel(/^Steps/).fill('4321');
+    await dialog.getByRole('button', { name: /save activity/i }).click();
+    await expect(page.getByText(/activity saved for yesterday/i).first()).toBeVisible();
+
+    // Today is untouched...
+    await expect(totals.getByText(/^[\d,]+$/).first()).toHaveText(todayBefore ?? '');
+
+    // ...and yesterday now reads 4,321 in the chart's table view.
+    await page.getByText('View as table').click();
+    await expect(page.getByRole('table').getByText('4,321')).toBeVisible();
+  });
+
+  test('the activity dialog will not record a future day', async ({ page }) => {
+    await page.getByRole('button', { name: /log activity/i }).click();
+    const dialog = page.getByRole('dialog');
+
+    const nextWeek = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    await dialog.getByLabel('Day').fill(nextWeek);
+    await dialog.getByRole('button', { name: /save activity/i }).click();
+
+    await expect(dialog.getByText(/has not happened yet/i)).toBeVisible();
+  });
+
   test('the activity dialog rejects an out-of-range value', async ({ page }) => {
     await page.getByRole('button', { name: /log activity/i }).click();
     const dialog = page.getByRole('dialog');

@@ -216,9 +216,23 @@ export const isoDateSchema = z
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }, 'Not a valid calendar date');
 
+/**
+ * A date that has actually happened.
+ *
+ * One day of slack, deliberately: the browser sends the user's *local* date,
+ * and a user east of UTC is legitimately living on tomorrow's date as far as
+ * this server is concerned. Without the slack, someone in Auckland could not
+ * log their own morning.
+ */
+export const pastOrTodaySchema = isoDateSchema.refine((value) => {
+  const limit = new Date();
+  limit.setUTCDate(limit.getUTCDate() + 1);
+  return value <= limit.toISOString().slice(0, 10);
+}, 'That date is in the future');
+
 export const upsertActivitySchema = z
   .object({
-    date: isoDateSchema.optional(),
+    date: pastOrTodaySchema.optional(),
     steps: z.number().int().min(0).max(300_000).optional(),
     calories: z.number().int().min(0).max(30_000).optional(),
     activeMinutes: z.number().int().min(0).max(1440).optional(),
