@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { expectNoA11yViolations, signInAsDemo, toastText, watchForErrors } from './helpers';
+import {
+  expectNoA11yViolations,
+  settledText,
+  signInAsDemo,
+  toastText,
+  watchForErrors,
+} from './helpers';
 
 test.describe('core flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -43,10 +49,7 @@ test.describe('core flows', () => {
 
   test('a past day can be corrected without touching today', async ({ page }) => {
     const totals = page.getByRole('region', { name: "Today's totals" });
-    const todayBefore = await totals
-      .getByText(/^[\d,]+$/)
-      .first()
-      .textContent();
+    const todayBefore = await settledText(totals.getByText(/^[\d,]+$/).first());
 
     await page.getByRole('button', { name: /log activity/i }).click();
     const dialog = page.getByRole('dialog');
@@ -63,7 +66,7 @@ test.describe('core flows', () => {
     await expect(toastText(page, /activity saved for yesterday/i)).toBeVisible();
 
     // Today is untouched...
-    await expect(totals.getByText(/^[\d,]+$/).first()).toHaveText(todayBefore ?? '');
+    expect(await settledText(totals.getByText(/^[\d,]+$/).first())).toBe(todayBefore);
 
     // ...and yesterday now reads 4,321 in the chart's table view.
     await page.getByText('View as table').click();
@@ -315,18 +318,57 @@ test.describe('navigation and resilience', () => {
 });
 
 test.describe('responsive layout', () => {
-  test('there is no horizontal overflow at 360px', async ({ page }) => {
-    await page.setViewportSize({ width: 360, height: 780 });
-    await signInAsDemo(page);
+  /*
+   * Four widths, not one. Testing only 360px missed a 68px overflow on every
+   * signed-in page at 768px: that is exactly the `md` breakpoint, where the
+   * header nav appeared while the viewport was still too narrow to hold it
+   * alongside the logo, badge, theme toggle and avatar.
+   */
+  for (const [width, height] of [
+    [360, 780],
+    [375, 812],
+    [768, 1024],
+    [1280, 900],
+    [1920, 1080],
+  ] as const) {
+    test(`there is no horizontal overflow at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await signInAsDemo(page);
 
-    for (const path of ['/', '/workouts', '/challenges', '/insights']) {
-      await page.goto(path);
-      await page.waitForTimeout(600);
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
-      expect(overflow, `horizontal overflow on ${path}`).toBeLessThanOrEqual(0);
+      for (const path of ['/', '/workouts', '/challenges', '/insights', '/settings']) {
+        await page.goto(path);
+        await page.waitForTimeout(600);
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(overflow, `horizontal overflow on ${path} at ${width}px`).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+
+  test('the About footer is reachable signed out and signed in', async ({ page }) => {
+    await page.goto('/login');
+    const footer = page.getByTestId('site-footer');
+    await expect(footer).toBeVisible();
+    await expect(footer.getByRole('heading', { name: 'About' })).toBeVisible();
+
+    // Every contact link opens in a new tab and carries a visible label.
+    for (const [name, href] of [
+      ['Portfolio', 'https://kashyappatel.vercel.app'],
+      ['GitHub', 'https://github.com/DeAtHfIrE26'],
+      ['LinkedIn', 'https://linkedin.com/in/kashyap-patel2673'],
+      ['Email', 'mailto:kashyappatel2673@gmail.com'],
+    ] as const) {
+      const link = footer.getByRole('link', { name });
+      await expect(link).toHaveAttribute('href', href);
+      if (!href.startsWith('mailto:')) {
+        await expect(link).toHaveAttribute('target', '_blank');
+        await expect(link).toHaveAttribute('rel', /noopener/);
+      }
     }
+
+    await signInAsDemo(page);
+    await expect(page.getByTestId('site-footer')).toBeVisible();
   });
 
   test('the bottom navigation is pinned to the viewport on mobile', async ({ page }) => {

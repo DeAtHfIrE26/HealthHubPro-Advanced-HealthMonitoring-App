@@ -35,16 +35,26 @@ function weekDelta(values: number[]): number | null {
   return ((recent - previous) / previous) * 100;
 }
 
+/**
+ * Sized to the page it stands in for.
+ *
+ * It used to reserve ~650px against ~1240px of real content, so everything
+ * below it -- including the footer -- dropped half a screen the moment the
+ * data landed. Measured at both breakpoints: greeting 54, tiles 110/354,
+ * goals 190/334, chart 410/486, sessions 382.
+ */
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <Skeleton className="h-[54px] max-w-xs" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-[104px]" />
         ))}
       </div>
-      <Skeleton className="h-[136px]" />
-      <Skeleton className="h-[360px]" />
+      <Skeleton className="h-[334px] lg:h-[190px]" />
+      <Skeleton className="h-[486px] lg:h-[410px]" />
+      <Skeleton className="h-[382px]" />
     </div>
   );
 }
@@ -106,34 +116,39 @@ export default function Dashboard() {
     {
       icon: Footprints,
       label: 'Steps',
-      value: formatNumber(activity?.steps ?? 0),
+      value: activity?.steps ?? 0,
+      format: formatNumber,
       delta: weekDelta(trend.map((d) => d.steps)),
     },
     {
       icon: Flame,
       label: 'Calories',
-      value: formatNumber(activity?.calories ?? 0),
+      value: activity?.calories ?? 0,
+      format: formatNumber,
       unit: 'kcal',
       delta: weekDelta(trend.map((d) => d.calories)),
     },
     {
       icon: Timer,
       label: 'Active',
-      value: formatNumber(activity?.activeMinutes ?? 0),
+      value: activity?.activeMinutes ?? 0,
+      format: formatNumber,
       unit: 'min',
       delta: weekDelta(trend.map((d) => d.activeMinutes)),
     },
     {
       icon: Moon,
       label: 'Sleep',
-      value: formatDecimal(activity?.sleepHours ?? 0),
+      value: activity?.sleepHours ?? 0,
+      format: formatDecimal,
       unit: 'h',
       delta: weekDelta(trend.map((d) => d.sleepHours)),
     },
     {
       icon: Droplets,
       label: 'Water',
-      value: formatDecimal(activity?.waterLiters ?? 0),
+      value: activity?.waterLiters ?? 0,
+      format: formatDecimal,
       unit: 'L',
       delta: weekDelta(trend.map((d) => d.waterLiters)),
     },
@@ -155,7 +170,7 @@ export default function Dashboard() {
       </div>
 
       <section aria-label="Today's totals">
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {tiles.map((tile, i) => (
             <li key={tile.label}>
               <StatTile {...tile} index={i} />

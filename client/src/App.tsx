@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Suspense, lazy } from 'react';
-import { Redirect, Route, Switch } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { AppShell } from '@/components/layout/AppShell';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/AuthContext';
@@ -42,6 +42,7 @@ function FullPageSpinner() {
 /** Renders the app for signed-in users and bounces everyone else to /login. */
 function PrivateRoutes() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) return <FullPageSpinner />;
   if (!user) return <Redirect to="/login" />;
@@ -53,16 +54,24 @@ function PrivateRoutes() {
         is identical, and a split route that resolves before paint never shows
         it anyway.
       */}
-      <Suspense fallback={<FullPageSpinner />}>
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/workouts" component={Workouts} />
-          <Route path="/challenges" component={Challenges} />
-          <Route path="/insights" component={Insights} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
+      {/*
+        Keyed on the path so each navigation remounts and replays the
+        entrance. Remounting also restarts the dashboard's counters and rings,
+        which is what you want when arriving at a page, not a side effect to
+        work around.
+      */}
+      <div key={location} className="route-enter">
+        <Suspense fallback={<FullPageSpinner />}>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/workouts" component={Workouts} />
+            <Route path="/challenges" component={Challenges} />
+            <Route path="/insights" component={Insights} />
+            <Route path="/settings" component={Settings} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </div>
     </AppShell>
   );
 }

@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { OfflineBanner } from '@/components/common/States';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="font-display text-base font-bold tracking-tight">HealthHubPro</span>
           </Link>
 
-          <nav aria-label="Main" className="ml-4 hidden items-center gap-1 md:flex">
+          {/*
+            lg, not md. At exactly 768px the logo, four nav items, the demo
+            badge, the theme toggle and the avatar came to ~813px inside a
+            736px content box, so every signed-in page scrolled sideways by
+            68px. Tablets get the bottom bar instead, which has room.
+          */}
+          <nav aria-label="Main" className="ml-4 hidden items-center gap-1 lg:flex">
             {NAV.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
@@ -96,14 +103,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            {persistent === false && (
-              <Badge
-                tone="warn"
-                className="hidden sm:inline-flex"
-                title="No database is connected, so data resets when the server restarts."
+            {/*
+              The health check resolves after first paint, so rendering the
+              badge only once it arrives shoved the theme toggle and avatar
+              sideways. The slot is held from the start and the badge fades
+              into it; when a database is connected the slot collapses, which
+              is the one case nobody watching a deployed app will see twice.
+            */}
+            {persistent !== true && (
+              <span
+                className={cn(
+                  'hidden transition-opacity duration-200 sm:inline-flex',
+                  persistent === false ? 'opacity-100' : 'opacity-0',
+                )}
+                aria-hidden={persistent !== false}
               >
-                Demo mode
-              </Badge>
+                <Badge
+                  tone="warn"
+                  title="No database is connected, so data resets when the server restarts."
+                >
+                  Demo mode
+                </Badge>
+              </span>
             )}
 
             <Button
@@ -150,14 +171,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 md:pb-12">
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6">
         {children}
       </main>
+
+      {/* Bottom padding clears the fixed mobile bar, which is gone at lg. */}
+      <SiteFooter className="pb-20 lg:pb-0" />
 
       {/* Bottom bar on phones; the header nav is hidden there. */}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg/95 backdrop-blur lg:hidden"
       >
         <div className="grid grid-cols-5">
           {[...NAV, SETTINGS_ITEM].map(({ href, label, icon: Icon }) => (

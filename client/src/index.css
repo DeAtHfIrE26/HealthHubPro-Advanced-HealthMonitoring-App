@@ -138,6 +138,16 @@
   .stat-enter {
     animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+
+  /*
+   * Route changes. Shorter than the tile entrance because it runs on every
+   * navigation and anything longer starts to feel like latency rather than
+   * continuity. Only opacity and transform move, so it stays on the
+   * compositor.
+   */
+  .route-enter {
+    animation: rise 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }
 
 @keyframes rise {

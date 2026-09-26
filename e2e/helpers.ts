@@ -22,6 +22,25 @@ export function toastText(page: Page, text: RegExp | string): Locator {
   return page.getByRole('region', { name: /notifications/i }).getByText(text);
 }
 
+/**
+ * A locator's text once it has stopped changing.
+ *
+ * The dashboard tiles ease their figures towards the real value, so reading
+ * one the instant it appears captures a frame mid-count. Polling until two
+ * consecutive reads agree beats sleeping for the animation's duration, which
+ * would bake a timing constant into the tests.
+ */
+export async function settledText(locator: Locator): Promise<string> {
+  let previous = await locator.textContent();
+  for (let i = 0; i < 25; i += 1) {
+    await locator.page().waitForTimeout(80);
+    const current = await locator.textContent();
+    if (current === previous) return current ?? '';
+    previous = current;
+  }
+  return previous ?? '';
+}
+
 /** Fails the test if any serious or critical accessibility violation exists. */
 export async function expectNoA11yViolations(page: Page): Promise<void> {
   // Wait for entrance animations to finish. Axe measures the computed pixel
