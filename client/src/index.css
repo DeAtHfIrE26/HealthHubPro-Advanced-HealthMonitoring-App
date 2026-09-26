@@ -59,18 +59,28 @@
     --text-muted: 220 12% 32%;
     --text-subtle: 220 9% 44%;
 
-    --accent: 76 62% 38%;
+    /*
+     * Accent is darker in light mode than the hue alone would suggest,
+     * because it has to work as text on white AND as a background under
+     * white ink, and those are the same ratio. At 38% both were 3.13:1 --
+     * the "8% vs last week" deltas, the primary button label and the avatar
+     * initials all failed AA. 28% measures 5.31:1 on white, 4.82:1 on
+     * surface-raised and 4.62:1 on accent-dim.
+     */
+    --accent: 76 62% 28%;
     --accent-ink: 0 0% 100%;
-    --accent-dim: 76 50% 88%;
+    --accent-dim: 76 50% 90%;
 
+    /* Bars are graphics, judged at 3:1, so they keep the lighter value. */
     --chart-1: 76 62% 38%;
     --chart-grid: 220 14% 91%;
 
-    --warn: 33 88% 42%;
+    /* 42% put the demo badge at 2.97:1 on its own tint; 32% is 4.75:1. */
+    --warn: 33 88% 32%;
     --danger: 353 66% 46%;
     --info: 199 78% 40%;
 
-    --ring: 76 62% 38%;
+    --ring: 76 62% 28%;
   }
 
   * {
@@ -137,6 +147,16 @@
 
   .stat-enter {
     animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /*
+   * Route changes. Shorter than the tile entrance because it runs on every
+   * navigation and anything longer starts to feel like latency rather than
+   * continuity. Only opacity and transform move, so it stays on the
+   * compositor.
+   */
+  .route-enter {
+    animation: rise 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
 

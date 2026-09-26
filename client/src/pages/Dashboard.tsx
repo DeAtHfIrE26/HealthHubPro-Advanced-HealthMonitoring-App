@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Droplets, Flame, Footprints, Moon, Plus, Timer } from 'lucide-react';
-import { Suspense, lazy, useState } from 'react';
+import { useState } from 'react';
+import { ActivityChart } from '@/components/dashboard/ActivityChart';
 import { GoalRing } from '@/components/dashboard/GoalRing';
 import { LogActivityDialog } from '@/components/dashboard/LogActivityDialog';
 import { StatTile } from '@/components/dashboard/StatTile';
@@ -18,34 +19,42 @@ import {
   todayIso,
 } from '@/lib/format';
 
-/*
- * Recharts is ~100 kB gzipped — a third of the whole bundle — and the tiles
- * above it are the first thing worth reading. Splitting it lets the dashboard
- * paint without waiting for the chart.
+/**
+ * Days of history the week-on-week deltas need: two full weeks, so the last
+ * seven can be compared with the seven before them. The fetch below widens to
+ * at least this, which is why weekDelta can assume it has enough.
  */
-const ActivityChart = lazy(() =>
-  import('@/components/dashboard/ActivityChart').then((m) => ({ default: m.ActivityChart })),
-);
+const DELTA_DAYS = 14;
 
 /** Percent change between the last `n` days and the `n` before that. */
 function weekDelta(values: number[]): number | null {
-  if (values.length < 14) return null;
+  if (values.length < DELTA_DAYS) return null;
   const recent = values.slice(-7).reduce((a, b) => a + b, 0);
   const previous = values.slice(-14, -7).reduce((a, b) => a + b, 0);
   if (previous === 0) return null;
   return ((recent - previous) / previous) * 100;
 }
 
+/**
+ * Sized to the page it stands in for.
+ *
+ * It used to reserve ~650px against ~1240px of real content, so everything
+ * below it -- including the footer -- dropped half a screen the moment the
+ * data landed. Measured at both breakpoints: greeting 54, tiles 110/354,
+ * goals 190/334, chart 410/486, sessions 382.
+ */
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <Skeleton className="h-[54px] max-w-xs" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-[104px]" />
         ))}
       </div>
-      <Skeleton className="h-[136px]" />
-      <Skeleton className="h-[360px]" />
+      <Skeleton className="h-[334px] lg:h-[190px]" />
+      <Skeleton className="h-[486px] lg:h-[410px]" />
+      <Skeleton className="h-[382px]" />
     </div>
   );
 }
@@ -56,18 +65,27 @@ export default function Dashboard() {
   const [logOpen, setLogOpen] = useState(false);
   const today = todayIso();
 
+  /*
+   * One history request serves all three things this page needs.
+   *
+   * It used to make three: the chart range, a fixed 14 days for the
+   * week-on-week deltas, and today's totals. But 14 days contains 7, any
+   * range >= 14 contains 14, and today is simply the last row of whichever
+   * window came back -- so two of the three were re-asking for data already
+   * in flight. Fetching max(days, DELTA_DAYS) once and slicing locally drops
+   * two round trips from every dashboard load without changing a single
+   * number on screen.
+   */
+  const windowDays = Math.max(days, DELTA_DAYS);
   const goalsQuery = useQuery({ queryKey: ['goals'], queryFn: () => api.goals() });
-  const activityQuery = useQuery({ queryKey: ['activity', today], queryFn: () => api.activity() });
   const historyQuery = useQuery({
-    queryKey: ['history', days],
-    queryFn: () => api.history(days),
+    queryKey: ['history', windowDays],
+    queryFn: () => api.history(windowDays),
   });
-  // Always fetch 14 days for the week-on-week deltas, regardless of chart range.
-  const trendQuery = useQuery({ queryKey: ['history', 14], queryFn: () => api.history(14) });
   const sessionsQuery = useQuery({ queryKey: ['sessions', 5], queryFn: () => api.sessions(5) });
 
-  const isLoading = goalsQuery.isLoading || activityQuery.isLoading || historyQuery.isLoading;
-  const error = goalsQuery.error ?? activityQuery.error ?? historyQuery.error;
+  const isLoading = goalsQuery.isLoading || historyQuery.isLoading;
+  const error = goalsQuery.error ?? historyQuery.error;
 
   if (error) {
     return (
@@ -75,7 +93,6 @@ export default function Dashboard() {
         message="We could not load your dashboard. Your connection may have dropped."
         onRetry={() => {
           void goalsQuery.refetch();
-          void activityQuery.refetch();
           void historyQuery.refetch();
         }}
       />
@@ -85,43 +102,53 @@ export default function Dashboard() {
   if (isLoading) return <DashboardSkeleton />;
 
   const goals = goalsQuery.data?.goals ?? [];
-  const activity = activityQuery.data?.activity;
-  const history = historyQuery.data?.history ?? [];
-  const trend = trendQuery.data?.history ?? [];
+  // Not named `window`: shadowing the global in a component is asking for a
+  // confusing bug the first time something here needs the real one.
+  const series = historyQuery.data?.history ?? [];
+  // The server zero-fills every day in the range and ends on today, so the
+  // last row is today's totals and the tail is the chart's range.
+  const history = series.slice(-days);
+  const trend = series.slice(-DELTA_DAYS);
+  const activity = series.at(-1);
   const sessions = sessionsQuery.data?.sessions ?? [];
 
   const tiles = [
     {
       icon: Footprints,
       label: 'Steps',
-      value: formatNumber(activity?.steps ?? 0),
+      value: activity?.steps ?? 0,
+      format: formatNumber,
       delta: weekDelta(trend.map((d) => d.steps)),
     },
     {
       icon: Flame,
       label: 'Calories',
-      value: formatNumber(activity?.calories ?? 0),
+      value: activity?.calories ?? 0,
+      format: formatNumber,
       unit: 'kcal',
       delta: weekDelta(trend.map((d) => d.calories)),
     },
     {
       icon: Timer,
       label: 'Active',
-      value: formatNumber(activity?.activeMinutes ?? 0),
+      value: activity?.activeMinutes ?? 0,
+      format: formatNumber,
       unit: 'min',
       delta: weekDelta(trend.map((d) => d.activeMinutes)),
     },
     {
       icon: Moon,
       label: 'Sleep',
-      value: formatDecimal(activity?.sleepHours ?? 0),
+      value: activity?.sleepHours ?? 0,
+      format: formatDecimal,
       unit: 'h',
       delta: weekDelta(trend.map((d) => d.sleepHours)),
     },
     {
       icon: Droplets,
       label: 'Water',
-      value: formatDecimal(activity?.waterLiters ?? 0),
+      value: activity?.waterLiters ?? 0,
+      format: formatDecimal,
       unit: 'L',
       delta: weekDelta(trend.map((d) => d.waterLiters)),
     },
@@ -143,7 +170,7 @@ export default function Dashboard() {
       </div>
 
       <section aria-label="Today's totals">
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {tiles.map((tile, i) => (
             <li key={tile.label}>
               <StatTile {...tile} index={i} />
@@ -170,9 +197,7 @@ export default function Dashboard() {
           <CardTitle>Activity history</CardTitle>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<Skeleton className="h-[304px]" />}>
-            <ActivityChart history={history} goals={goals} days={days} onDaysChange={setDays} />
-          </Suspense>
+          <ActivityChart history={history} goals={goals} days={days} onDaysChange={setDays} />
         </CardContent>
       </Card>
 

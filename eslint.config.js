@@ -45,4 +45,12 @@ export default tseslint.config(
     files: ['server/**/*.ts', 'api/**/*.ts', 'shared/**/*.ts', 'test/**/*.ts', '*.config.{ts,js}'],
     languageOptions: { globals: globals.node },
   },
+  {
+    // Performance harness: Node scripts that also carry snippets evaluated
+    // inside the page, so they legitimately reference both global sets. They
+    // report measurements, so console output is the point.
+    files: ['.perf/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { 'no-console': 'off' },
+  },
 );

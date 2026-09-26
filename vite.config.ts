@@ -20,12 +20,21 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // Split the charting library out: it is only needed on the dashboard,
-        // and it is by far the largest single dependency.
+        /*
+         * Recharts is deliberately NOT given a manual chunk.
+         *
+         * Naming it promotes it into the entry's preload set, so index.html
+         * emitted <link rel="modulepreload"> for it and every visitor
+         * downloaded 365 kB of charting library to look at the login form --
+         * the exact opposite of what splitting it was meant to achieve.
+         * Leaving it unnamed lets it ride along in the already-lazy
+         * ActivityChart chunk, which the dashboard fetches on demand in one
+         * request instead of two.
+         *
+         * React stays named: it is needed for the first paint, so preloading
+         * it is correct and keeps it cached across app updates.
+         */
         manualChunks(id: string) {
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
-            return 'charts';
-          }
           if (/node_modules\/(react|react-dom|scheduler|wouter)\//.test(id)) {
             return 'react';
           }

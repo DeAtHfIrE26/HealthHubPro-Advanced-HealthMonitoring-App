@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, type FieldErrors } from '@/lib/api';
 
@@ -70,82 +71,88 @@ export default function Register() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col justify-center px-4 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <span className="flex size-11 items-center justify-center rounded-lg bg-accent">
-            <Activity className="size-5 text-accent-ink" aria-hidden="true" />
-          </span>
-          <h1 className="mt-4 font-display text-2xl font-bold">Create your account</h1>
-          <p className="mt-1 text-sm text-text-muted">
-            Starts with sensible daily goals you can change later.
-          </p>
-        </div>
-
-        <form onSubmit={submit} noValidate>
-          {error ? (
-            <Alert tone="error" className="mb-4">
-              {error}
-            </Alert>
-          ) : null}
-
-          <div className="grid grid-cols-2 gap-3">
-            {FIELDS.map((field) => {
-              const messages = fieldErrors[field.name];
-              const describedBy =
-                [messages ? `${field.name}-error` : null, field.hint ? `${field.name}-hint` : null]
-                  .filter(Boolean)
-                  .join(' ') || undefined;
-
-              return (
-                <div
-                  key={field.name}
-                  className={
-                    field.half ? 'flex flex-col gap-1.5' : 'col-span-2 flex flex-col gap-1.5'
-                  }
-                >
-                  <Label htmlFor={field.name}>{field.label}</Label>
-                  <Input
-                    id={field.name}
-                    name={field.name}
-                    type={field.type ?? 'text'}
-                    autoComplete={field.autoComplete}
-                    required
-                    value={form[field.name]}
-                    onChange={(e) => setForm((f) => ({ ...f, [field.name]: e.target.value }))}
-                    aria-invalid={messages !== undefined}
-                    aria-describedby={describedBy}
-                  />
-                  {messages ? (
-                    <p id={`${field.name}-error`} className="text-xs text-danger">
-                      {messages[0]}
-                    </p>
-                  ) : field.hint ? (
-                    <p id={`${field.name}-hint`} className="text-xs text-text-subtle">
-                      {field.hint}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })}
+    <div className="flex min-h-screen flex-col">
+      <main className="flex flex-1 flex-col justify-center px-4 py-10">
+        <div className="mx-auto w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <span className="flex size-11 items-center justify-center rounded-lg bg-accent">
+              <Activity className="size-5 text-accent-ink" aria-hidden="true" />
+            </span>
+            <h1 className="mt-4 font-display text-2xl font-bold">Create your account</h1>
+            <p className="mt-1 text-sm text-text-muted">
+              Starts with sensible daily goals you can change later.
+            </p>
           </div>
 
-          <Button type="submit" className="mt-5 w-full" disabled={pending}>
-            {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-            {pending ? 'Creating account…' : 'Create account'}
-          </Button>
-        </form>
+          <form onSubmit={submit} noValidate>
+            {error ? (
+              <Alert tone="error" className="mb-4">
+                {error}
+              </Alert>
+            ) : null}
 
-        <p className="mt-6 text-center text-sm text-text-muted">
-          Already registered?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </main>
+            <div className="grid grid-cols-2 gap-3">
+              {FIELDS.map((field) => {
+                const messages = fieldErrors[field.name];
+                const describedBy =
+                  [
+                    messages ? `${field.name}-error` : null,
+                    field.hint ? `${field.name}-hint` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined;
+
+                return (
+                  <div
+                    key={field.name}
+                    className={
+                      field.half ? 'flex flex-col gap-1.5' : 'col-span-2 flex flex-col gap-1.5'
+                    }
+                  >
+                    <Label htmlFor={field.name}>{field.label}</Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type={field.type ?? 'text'}
+                      autoComplete={field.autoComplete}
+                      required
+                      value={form[field.name]}
+                      onChange={(e) => setForm((f) => ({ ...f, [field.name]: e.target.value }))}
+                      aria-invalid={messages !== undefined}
+                      aria-describedby={describedBy}
+                    />
+                    {messages ? (
+                      <p id={`${field.name}-error`} className="text-xs text-danger">
+                        {messages[0]}
+                      </p>
+                    ) : field.hint ? (
+                      <p id={`${field.name}-hint`} className="text-xs text-text-subtle">
+                        {field.hint}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <Button type="submit" className="mt-5 w-full" disabled={pending}>
+              {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {pending ? 'Creating account…' : 'Create account'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-text-muted">
+            Already registered?{' '}
+            <Link
+              href="/login"
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { GoalProgress } from '@shared/schema';
 import { formatDecimal, formatNumber } from '@/lib/format';
 
@@ -18,6 +19,19 @@ export function GoalRing({ goal }: { goal: GoalProgress }) {
   const meta = LABELS[goal.type];
   const fmt = meta.decimal ? formatDecimal : formatNumber;
   const complete = goal.percent >= 100;
+
+  /*
+   * The arc already had a stroke-dashoffset transition, but React paints the
+   * final offset on the first render so there was nothing to transition from
+   * and the ring simply appeared. Starting at zero and setting the real value
+   * after mount gives the transition something to do. Reduced motion is
+   * handled globally in index.css, which collapses the duration.
+   */
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setDrawn(Math.min(goal.percent, 100)));
+    return () => cancelAnimationFrame(id);
+  }, [goal.percent]);
 
   return (
     <li className="flex flex-col items-center gap-2 text-center">
@@ -47,7 +61,7 @@ export function GoalRing({ goal }: { goal: GoalProgress }) {
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={CIRCUMFERENCE * (1 - Math.min(goal.percent, 100) / 100)}
+            strokeDashoffset={CIRCUMFERENCE * (1 - drawn / 100)}
             className="transition-[stroke-dashoffset] duration-700 ease-out"
           />
         </svg>

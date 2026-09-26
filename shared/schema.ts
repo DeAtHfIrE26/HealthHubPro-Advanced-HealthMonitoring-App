@@ -1,155 +1,47 @@
 /**
- * Single source of truth for the data model.
+ * Single source of truth for the data model as the API sees it.
  *
- * Drizzle tables describe the Postgres shape; the Zod schemas below validate
- * everything crossing the API boundary. Both storage implementations
- * (Postgres and in-memory) conform to the types inferred here.
+ * The Zod schemas here validate everything crossing the API boundary, and the
+ * row types are inferred from the Drizzle tables in `tables.ts`. Both storage
+ * implementations (Postgres and in-memory) conform to the types here.
  */
-import {
-  boolean,
-  date,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  real,
-  serial,
-  text,
-  timestamp,
-  unique,
-  varchar,
-} from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { DIFFICULTIES, GOAL_TYPES, WORKOUT_TYPES } from './enums.js';
+// Used in a type position further down; re-exporting it does not bring it
+// into this module's own scope.
+import type { InsightType } from './enums.js';
+/*
+ * Type-only: the row types below are inferred from the table definitions, but
+ * `import type` is erased, so requiring a validator never loads drizzle.
+ */
+import type {
+  activityStats,
+  challengeParticipants,
+  challenges,
+  goals,
+  users,
+  workoutSessions,
+  workouts,
+} from './tables.js';
+
+export type { Exercise } from './tables.js';
 
 /* -------------------------------------------------------------------------- */
 /* Enums                                                                      */
 /* -------------------------------------------------------------------------- */
 
-export const GOAL_TYPES = ['steps', 'calories', 'activeMinutes', 'sleep', 'water'] as const;
-export const WORKOUT_TYPES = ['cardio', 'strength', 'flexibility', 'hiit', 'yoga'] as const;
-export const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'] as const;
-export const CHALLENGE_TYPES = ['steps', 'calories', 'activeMinutes', 'workouts'] as const;
-export const INSIGHT_TYPES = ['workout', 'nutrition', 'sleep', 'hydration', 'activity'] as const;
-
-export type GoalType = (typeof GOAL_TYPES)[number];
-export type WorkoutType = (typeof WORKOUT_TYPES)[number];
-export type Difficulty = (typeof DIFFICULTIES)[number];
-export type ChallengeType = (typeof CHALLENGE_TYPES)[number];
-export type InsightType = (typeof INSIGHT_TYPES)[number];
-
-/* -------------------------------------------------------------------------- */
-/* Tables                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  username: varchar('username', { length: 50 }).notNull().unique(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  firstName: varchar('first_name', { length: 50 }).notNull(),
-  lastName: varchar('last_name', { length: 50 }).notNull(),
-  heightCm: integer('height_cm'),
-  weightKg: real('weight_kg'),
-  age: integer('age'),
-  location: varchar('location', { length: 120 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const activityStats = pgTable(
-  'activity_stats',
-  {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    /** Calendar day in YYYY-MM-DD. One row per user per day. */
-    date: date('date').notNull(),
-    steps: integer('steps').notNull().default(0),
-    calories: integer('calories').notNull().default(0),
-    activeMinutes: integer('active_minutes').notNull().default(0),
-    sleepHours: real('sleep_hours').notNull().default(0),
-    waterLiters: real('water_liters').notNull().default(0),
-  },
-  (t) => [
-    unique('activity_stats_user_date').on(t.userId, t.date),
-    index('activity_stats_user_idx').on(t.userId),
-  ],
-);
-
-export const goals = pgTable(
-  'goals',
-  {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: varchar('type', { length: 20 }).notNull().$type<GoalType>(),
-    target: real('target').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [unique('goals_user_type').on(t.userId, t.type)],
-);
-
-export const workouts = pgTable('workouts', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  type: varchar('type', { length: 20 }).notNull().$type<WorkoutType>(),
-  description: text('description').notNull().default(''),
-  difficulty: varchar('difficulty', { length: 20 }).notNull().$type<Difficulty>(),
-  durationMin: integer('duration_min').notNull(),
-  caloriesBurn: integer('calories_burn').notNull(),
-  exercises: jsonb('exercises').notNull().$type<Exercise[]>().default([]),
-});
-
-export const workoutSessions = pgTable(
-  'workout_sessions',
-  {
-    id: serial('id').primaryKey(),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    workoutId: integer('workout_id')
-      .notNull()
-      .references(() => workouts.id, { onDelete: 'cascade' }),
-    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
-    completedAt: timestamp('completed_at', { withTimezone: true }),
-    elapsedSec: integer('elapsed_sec').notNull().default(0),
-    caloriesBurned: integer('calories_burned').notNull().default(0),
-    completed: boolean('completed').notNull().default(false),
-  },
-  (t) => [index('workout_sessions_user_idx').on(t.userId)],
-);
-
-export const challenges = pgTable('challenges', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  description: text('description').notNull().default(''),
-  type: varchar('type', { length: 20 }).notNull().$type<ChallengeType>(),
-  target: real('target').notNull(),
-  startDate: date('start_date').notNull(),
-  endDate: date('end_date').notNull(),
-});
-
-export const challengeParticipants = pgTable(
-  'challenge_participants',
-  {
-    id: serial('id').primaryKey(),
-    challengeId: integer('challenge_id')
-      .notNull()
-      .references(() => challenges.id, { onDelete: 'cascade' }),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [unique('challenge_participants_unique').on(t.challengeId, t.userId)],
-);
+export {
+  GOAL_TYPES,
+  WORKOUT_TYPES,
+  DIFFICULTIES,
+  CHALLENGE_TYPES,
+  INSIGHT_TYPES,
+} from './enums.js';
+export type { GoalType, WorkoutType, Difficulty, ChallengeType, InsightType } from './enums.js';
 
 /* -------------------------------------------------------------------------- */
 /* Inferred row types                                                         */
 /* -------------------------------------------------------------------------- */
-
-export type Exercise = { name: string; sets: number; reps: number };
 
 export type User = typeof users.$inferSelect;
 export type ActivityStat = typeof activityStats.$inferSelect;

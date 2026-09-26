@@ -1,24 +1,30 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Suspense, lazy } from 'react';
-import { Redirect, Route, Switch } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { AppShell } from '@/components/layout/AppShell';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/queryClient';
-import Challenges from '@/pages/Challenges';
 import Dashboard from '@/pages/Dashboard';
-import Insights from '@/pages/Insights';
 import Login from '@/pages/Login';
 import NotFound from '@/pages/NotFound';
 import Register from '@/pages/Register';
-import Workouts from '@/pages/Workouts';
 
 /*
- * Settings carries the import parsers and is visited rarely, so it is split
- * out of the entry chunk rather than taxing every dashboard load.
+ * Every route except the two a visitor can land on cold is split out.
+ *
+ * Dashboard stays eager because it is the landing page for a signed-in user,
+ * and Login because it is the landing page for everyone else -- splitting
+ * either would add a round trip to the only paint that matters. The rest are
+ * reached by a deliberate click, by which time the chunk is already being
+ * fetched, and keeping them in the entry chunk meant every first load parsed
+ * and evaluated four pages nobody had asked for yet.
  */
+const Workouts = lazy(() => import('@/pages/Workouts'));
+const Challenges = lazy(() => import('@/pages/Challenges'));
+const Insights = lazy(() => import('@/pages/Insights'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 function FullPageSpinner() {
@@ -36,26 +42,36 @@ function FullPageSpinner() {
 /** Renders the app for signed-in users and bounces everyone else to /login. */
 function PrivateRoutes() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) return <FullPageSpinner />;
   if (!user) return <Redirect to="/login" />;
 
   return (
     <AppShell>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/workouts" component={Workouts} />
-        <Route path="/challenges" component={Challenges} />
-        <Route path="/insights" component={Insights} />
-        <Route path="/settings">
-          {() => (
-            <Suspense fallback={<FullPageSpinner />}>
-              <Settings />
-            </Suspense>
-          )}
-        </Route>
-        <Route component={NotFound} />
-      </Switch>
+      {/*
+        One boundary around the Switch rather than one per route: the fallback
+        is identical, and a split route that resolves before paint never shows
+        it anyway.
+      */}
+      {/*
+        Keyed on the path so each navigation remounts and replays the
+        entrance. Remounting also restarts the dashboard's counters and rings,
+        which is what you want when arriving at a page, not a side effect to
+        work around.
+      */}
+      <div key={location} className="route-enter">
+        <Suspense fallback={<FullPageSpinner />}>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/workouts" component={Workouts} />
+            <Route path="/challenges" component={Challenges} />
+            <Route path="/insights" component={Insights} />
+            <Route path="/settings" component={Settings} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </div>
     </AppShell>
   );
 }
