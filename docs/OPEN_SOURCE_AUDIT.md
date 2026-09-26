@@ -175,47 +175,28 @@ What it is meant to demonstrate, each backed by something a reader can run:
 
 ## 5. Where the showcase lives
 
-Repository creation through the GitHub integration available to this session
-returned `403`, so the showcase was built the fallback way: on an **orphan
-branch** in this repository.
+**https://github.com/DeAtHfIrE26/healthhubpro-showcase** — public, default
+branch `main`.
 
-- Branch: **`showcase`**
-- History: **one commit, zero shared ancestry** with `main`. `git log showcase`
-  shows a single root commit; nothing from this repository's 45 commits is
-  reachable from it.
-- 73 files, 10,593 lines. No `node_modules`, no build output, no `.env`.
+- History: **one root commit** from the extraction, with no shared ancestry
+  with this repository. `git merge-base` between the two returns nothing;
+  none of this repository's 45 commits is reachable from it.
+- 73 files, 10,593 lines at that first commit. No `node_modules`, no build
+  output, no `.env`.
+- Every URL in it — the CI badge, the clone command, the issue links,
+  `package.json`, the security advisory link — already named this repository
+  before the move, so nothing needed rewriting afterwards.
 
-Until it moves, the branch is self-contained: cloning it with
-`--single-branch --branch showcase` yields a repository with no trace of the
-application.
+It was built first on an orphan branch here, because repository creation
+through the GitHub integration available to this session returned `403`. Once
+the public repository existed, that branch was cloned single-branch, renamed to
+`main`, repointed and pushed — which is why the published history is the single
+commit and nothing else.
 
-### Moving it to its own public repository
-
-Every URL in the showcase — the CI badge, the clone command, the issue links,
-`package.json`, the security advisory link — already points at
-`DeAtHfIrE26/healthhubpro-showcase`, so nothing needs editing afterwards. Only
-the CI badge is broken until the repository exists.
-
-Create the empty public repository on GitHub named `healthhubpro-showcase`, no
-README, no licence, no `.gitignore`. Then:
-
-```bash
-git clone --single-branch --branch showcase \
-  https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git \
-  healthhubpro-showcase
-cd healthhubpro-showcase
-git branch -m showcase main
-git remote set-url origin https://github.com/DeAtHfIrE26/healthhubpro-showcase.git
-git push -u origin main
-```
-
-The clone carries the single root commit and nothing else, so the new
-repository starts with the history it should have. Once it is pushed, delete
-the staging branch from this repository:
-
-```bash
-git push origin --delete showcase
-```
+The staging branch `showcase` is still on this repository. The session's git
+proxy refuses ref deletions (`send-pack: unexpected disconnect`), so it has to
+go by hand; it is a byte-for-byte duplicate of what is now public, so leaving
+it costs nothing but noise.
 
 ### Verification performed on a clean clone
 
