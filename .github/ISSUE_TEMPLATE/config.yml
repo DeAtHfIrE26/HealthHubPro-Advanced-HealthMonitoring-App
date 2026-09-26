@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: See it running
+    url: https://healthhubproapp.vercel.app
+    about: The full application these components were extracted from.
+  - name: Security report
+    url: https://github.com/DeAtHfIrE26/healthhubpro-showcase/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue.

@@ -1,0 +1,52 @@
+name: Bug report
+description: Something does not behave the way it says it does.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A failing test or a playground reproduction
+        is worth more than any amount of description, so lead with one if you can.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps, a code snippet, or a failing test.
+      placeholder: |
+        1. Render <ActivityChart history={...} days={30} />
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Package version or commit SHA.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - ActivityChart
+        - GoalRing / StatTile
+        - Import parsers
+        - UI primitives
+        - Hooks
+        - Playground
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: 'Browser, OS, Node version'

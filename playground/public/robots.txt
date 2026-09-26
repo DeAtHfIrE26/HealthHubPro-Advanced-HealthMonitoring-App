@@ -1,0 +1,3 @@
+# The playground is a demo surface, not content worth indexing.
+User-agent: *
+Disallow:

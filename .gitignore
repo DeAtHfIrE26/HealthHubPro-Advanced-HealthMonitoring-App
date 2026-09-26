@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-playground/
+coverage/
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+.vite/

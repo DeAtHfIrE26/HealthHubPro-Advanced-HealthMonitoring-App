@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>HealthHubPro Showcase — components on synthetic data</title>
+    <meta
+      name="description"
+      content="Standalone React components, hooks and health-data parsers extracted from HealthHubPro, running on synthetic data."
+    />
+    <script>
+      // Pick the theme before first paint so a light-mode visitor never sees
+      // a dark flash. Wrapped because storage throws in some privacy modes.
+      (function () {
+        try {
+          var t = localStorage.getItem('hhp-theme');
+          if (t === 'light' || t === 'dark') {
+            document.documentElement.dataset.theme = t;
+            document.documentElement.style.colorScheme = t;
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
