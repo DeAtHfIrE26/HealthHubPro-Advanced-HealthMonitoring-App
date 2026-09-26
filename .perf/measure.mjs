@@ -112,7 +112,7 @@ const browser = await chromium.launch({ executablePath: EXEC });
   await page2.goto(`${BASE}/`, { waitUntil: 'load' });
   await page2.getByRole('heading', { name: /hello, demo/i }).waitFor();
   await page2
-    .locator('.recharts-wrapper svg')
+    .getByRole('img', { name: /over the last \d+ days/i })
     .first()
     .waitFor({ timeout: 15000 })
     .catch(() => {});
@@ -135,9 +135,6 @@ const browser = await chromium.launch({ executablePath: EXEC });
   out.scenarios.chartRangeSwitch = {
     wallMs: switchMs,
     longTasks: await page2.evaluate(() => window.__perf.longTasks.sort((a, b) => b - a)),
-    points: await page2
-      .locator('.recharts-wrapper .recharts-line-dot, .recharts-wrapper .recharts-area-dot')
-      .count(),
   };
 
   // ---- 4. Navigate to Settings (lazy route) ------------------------------

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Droplets, Flame, Footprints, Moon, Plus, Timer } from 'lucide-react';
-import { Suspense, lazy, useState } from 'react';
+import { useState } from 'react';
+import { ActivityChart } from '@/components/dashboard/ActivityChart';
 import { GoalRing } from '@/components/dashboard/GoalRing';
-import { ChartSkeleton } from '@/components/dashboard/ChartSkeleton';
 import { LogActivityDialog } from '@/components/dashboard/LogActivityDialog';
 import { StatTile } from '@/components/dashboard/StatTile';
 import { ErrorState } from '@/components/common/States';
@@ -18,15 +18,6 @@ import {
   formatRelativeDay,
   todayIso,
 } from '@/lib/format';
-
-/*
- * Recharts is ~100 kB gzipped — a third of the whole bundle — and the tiles
- * above it are the first thing worth reading. Splitting it lets the dashboard
- * paint without waiting for the chart.
- */
-const ActivityChart = lazy(() =>
-  import('@/components/dashboard/ActivityChart').then((m) => ({ default: m.ActivityChart })),
-);
 
 /**
  * Days of history the week-on-week deltas need: two full weeks, so the last
@@ -191,9 +182,7 @@ export default function Dashboard() {
           <CardTitle>Activity history</CardTitle>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<ChartSkeleton />}>
-            <ActivityChart history={history} goals={goals} days={days} onDaysChange={setDays} />
-          </Suspense>
+          <ActivityChart history={history} goals={goals} days={days} onDaysChange={setDays} />
         </CardContent>
       </Card>
 

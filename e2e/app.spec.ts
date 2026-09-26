@@ -15,7 +15,7 @@ test.describe('core flows', () => {
 
     await expect(page.getByText('Steps', { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('heading', { name: "Today's goals" })).toBeVisible();
-    await expect(page.locator('.recharts-wrapper svg').first()).toBeVisible();
+    await expect(page.getByRole('img', { name: /over the last \d+ days/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Recent sessions' })).toBeVisible();
 
     expect(errors).toEqual([]);
@@ -98,7 +98,48 @@ test.describe('core flows', () => {
 
     await page.getByRole('button', { name: '30d' }).click();
     await expect(page.getByRole('button', { name: '30d' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.recharts-wrapper svg').first()).toBeVisible();
+    await expect(page.getByRole('img', { name: /over the last \d+ days/i })).toBeVisible();
+  });
+
+  test('every bar has real width at every range', async ({ page }) => {
+    // A percentage flex gap once resolved against the container rather than
+    // the band, so at 30 days the gaps totalled more than 100% and every bar
+    // collapsed to zero width. The plot still had gridlines and an axis, so
+    // nothing else in this suite noticed.
+    for (const range of ['7d', '14d', '30d']) {
+      await page.getByRole('button', { name: range }).click();
+      await expect(page.getByRole('button', { name: range })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+
+      const bars = page.locator('[role="img"][aria-label*="over the last"] span.origin-bottom');
+      await expect(bars.first()).toBeVisible();
+      const count = await bars.count();
+      expect(count).toBe(Number(range.replace('d', '')));
+
+      const widths = await bars.evaluateAll((els) =>
+        els.map((el) => el.getBoundingClientRect().width),
+      );
+      expect(Math.min(...widths)).toBeGreaterThan(0);
+    }
+  });
+
+  test('switching range does not leave a stale tooltip behind', async ({ page }) => {
+    const plot = page.getByRole('img', { name: /over the last \d+ days/i });
+    // On the phone viewport the chart starts below the fold, and a mouse move
+    // to coordinates outside the viewport lands nowhere.
+    await plot.scrollIntoViewIfNeeded();
+    const box = await plot.boundingBox();
+    if (!box) throw new Error('chart has no box');
+
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.7);
+    await expect(plot.locator('.bg-surface-raised').first()).toBeVisible();
+
+    // The hovered index points into the old rows, so it has to be dropped.
+    await page.getByRole('button', { name: '30d' }).click();
+    await expect(page.getByRole('button', { name: '30d' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(plot.locator('.bg-surface-raised')).toHaveCount(0);
   });
 
   test('the chart data is also available as a table', async ({ page }) => {
