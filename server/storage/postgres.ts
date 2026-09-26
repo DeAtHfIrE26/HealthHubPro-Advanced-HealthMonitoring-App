@@ -26,7 +26,7 @@ import {
   users,
   workoutSessions,
   workouts,
-} from '../../shared/schema.js';
+} from '../../shared/tables.js';
 import type { ImportDay, ImportResult } from '../../shared/import.js';
 import { addDays, buildSeed, todayIso } from './seed.js';
 import { rangeOf, resolveMerge } from './memory.js';
