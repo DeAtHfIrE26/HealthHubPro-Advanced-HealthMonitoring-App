@@ -185,25 +185,53 @@ branch** in this repository.
   reachable from it.
 - 73 files, 10,593 lines. No `node_modules`, no build output, no `.env`.
 
-Moving it into its own public repository is a five-command job and is listed in
-the handoff notes. Until then, the branch is self-contained: cloning it with
+Until it moves, the branch is self-contained: cloning it with
 `--single-branch --branch showcase` yields a repository with no trace of the
 application.
+
+### Moving it to its own public repository
+
+Every URL in the showcase — the CI badge, the clone command, the issue links,
+`package.json`, the security advisory link — already points at
+`DeAtHfIrE26/healthhubpro-showcase`, so nothing needs editing afterwards. Only
+the CI badge is broken until the repository exists.
+
+Create the empty public repository on GitHub named `healthhubpro-showcase`, no
+README, no licence, no `.gitignore`. Then:
+
+```bash
+git clone --single-branch --branch showcase \
+  https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App.git \
+  healthhubpro-showcase
+cd healthhubpro-showcase
+git branch -m showcase main
+git remote set-url origin https://github.com/DeAtHfIrE26/healthhubpro-showcase.git
+git push -u origin main
+```
+
+The clone carries the single root commit and nothing else, so the new
+repository starts with the history it should have. Once it is pushed, delete
+the staging branch from this repository:
+
+```bash
+git push origin --delete showcase
+```
 
 ### Verification performed on a clean clone
 
 Cloned fresh from `origin/showcase` into an empty directory, with no cached
 `node_modules`:
 
-| Check                                     | Result                                                                                                                        |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `npm ci`                                  | 355 packages, **0 vulnerabilities**                                                                                           |
-| `npm run lint` (ESLint 9, flat config)    | clean                                                                                                                         |
-| `npm run typecheck` (`tsc --noEmit`)      | clean                                                                                                                         |
-| `npm test` (Vitest)                       | **82 passed** in 4 files                                                                                                      |
-| `npm run build`                           | `dist/index.js` 65.19 kB, gzip **18.59 kB**                                                                                   |
-| `gitleaks detect` over the branch history | **no leaks found**                                                                                                            |
-| `trufflehog --regex --entropy=True`       | 378 hits, **all 378** matched, string for string, against the `"integrity"` digests in `package-lock.json` — zero unaccounted |
+| Check                                     | Result                                                                                                                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                                  | 355 packages, **0 vulnerabilities**                                                                                                                                                                                              |
+| `npm run lint` (ESLint 9, flat config)    | clean                                                                                                                                                                                                                            |
+| `npm run typecheck` (`tsc --noEmit`)      | clean                                                                                                                                                                                                                            |
+| `npm test` (Vitest)                       | **82 passed** in 4 files                                                                                                                                                                                                         |
+| `npm run build`                           | `dist/index.js` 65.19 kB, gzip **18.59 kB**                                                                                                                                                                                      |
+| `gitleaks detect` over the branch history | **no leaks found**                                                                                                                                                                                                               |
+| `trufflehog --regex --entropy=True`       | 378 hits, **all 378** matched, string for string, against the `"integrity"` digests in `package-lock.json` — zero unaccounted                                                                                                    |
+| GitHub Actions CI on the pushed branch    | **both jobs green** — install, lint, format, typecheck, test, build library, build playground, plus a `gitleaks` job ([run](https://github.com/DeAtHfIrE26/HealthHubPro-Advanced-HealthMonitoring-App/actions/runs/36253761535)) |
 
 ### One fix that came back into this repository
 
