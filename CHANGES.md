@@ -5,7 +5,7 @@ API contract changed. Auth, CSRF, route guards, the `/api/health` response
 shape, SPA deep-link rewrites and the sample account are all untouched.
 
 **Regression gate: the E2E suite passed before and after every step.** It grew
-from 90 to 104 tests, because three of the bugs below got past all 90.
+from 90 to 108 tests, because four of the bugs below got past all 90.
 
 ---
 
@@ -199,10 +199,19 @@ result rather than trusting the suite. All three now have tests.
 3. **The tooltip survived a range switch**, showing a stale index against a
    different day's data.
 
-Two more were pre-existing:
+Three more were pre-existing:
 
-4. **68px horizontal overflow at 768px** (above).
-5. **CLS 0.0668 from the dashboard skeleton and the demo badge.** The skeleton
+4. **Light theme failed WCAG AA on every page.** axe had only ever run
+   against the dark default. The accent measured **3.13:1** both as text on
+   white and under white ink — the same ratio — so the week-on-week deltas,
+   the primary button label and the avatar initials all failed; the demo
+   badge was **2.97:1** on its own tint. Computed rather than eyeballed:
+   accent moves 38% → 28% (5.31:1 on white, 4.82:1 on surface-raised),
+   accent-dim 88% → 90%, warn 42% → 32% (4.75:1 on tint). Chart bars keep
+   the lighter value — they are graphics, judged at 3:1. axe now runs in
+   **both themes across five routes**, which is what should have caught this.
+5. **68px horizontal overflow at 768px** (above).
+6. **CLS 0.0668 from the dashboard skeleton and the demo badge.** The skeleton
    reserved ~650px against ~1240px of real content, so everything below it —
    including the new footer — dropped half a screen when data landed. And the
    "Demo mode" badge rendered only once the health check resolved, shoving the
@@ -278,7 +287,7 @@ deployment. From any unrestricted machine:
 
 ```bash
 npm run verify                  # lint, typecheck, 233 unit/integration tests, build
-npm run test:e2e                # 104 end-to-end tests, desktop + mobile
+npm run test:e2e                # 108 end-to-end tests, desktop + mobile
 node .perf/measure.mjs          # waterfall, Web Vitals, long tasks
 node .perf/throttled.mjs        # the same under Fast 3G + 4x CPU
 node .perf/api.mjs              # per-endpoint latency (needs NODE_ENV=test)

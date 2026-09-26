@@ -145,6 +145,33 @@ test.describe('core flows', () => {
     await expect(plot.locator('.bg-surface-raised')).toHaveCount(0);
   });
 
+  /*
+   * Light mode had never been scanned. It was failing AA on every page: the
+   * accent read 3.13:1 as text on white and under white ink, and the demo
+   * badge 2.97:1 on its own tint.
+   */
+  for (const theme of ['light', 'dark'] as const) {
+    test(`${theme} theme meets AA on every signed-in page`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((t) => {
+        try {
+          localStorage.setItem('hhp-theme', t);
+        } catch {
+          /* private mode; the data-theme set below still applies */
+        }
+      }, theme);
+
+      for (const path of ['/', '/workouts', '/challenges', '/insights', '/settings']) {
+        await page.goto(path);
+        await page.evaluate((t) => {
+          document.documentElement.dataset.theme = t;
+        }, theme);
+        await expect(page.locator('main')).toBeVisible();
+        await expectNoA11yViolations(page);
+      }
+    });
+  }
+
   test('the chart data is also available as a table', async ({ page }) => {
     await page.getByText('View as table').click();
     await expect(page.getByRole('table')).toBeVisible();
