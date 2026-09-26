@@ -39,6 +39,8 @@
 
     --warn: 38 92% 60%;
     --danger: 353 76% 62%;
+    /* White on this red is 3.56:1. Dark ink on it is 5.25:1. */
+    --danger-ink: 220 30% 8%;
     --info: 199 84% 62%;
 
     --ring: 76 92% 63%;
@@ -78,6 +80,8 @@
     /* 42% put the demo badge at 2.97:1 on its own tint; 32% is 4.75:1. */
     --warn: 33 88% 32%;
     --danger: 353 66% 46%;
+    /* The light theme's red is dark enough to carry white. */
+    --danger-ink: 0 0% 100%;
     --info: 199 78% 40%;
 
     --ring: 76 62% 28%;

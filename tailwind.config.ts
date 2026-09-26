@@ -26,7 +26,10 @@ export default {
           dim: 'hsl(var(--accent-dim))',
         },
         warn: 'hsl(var(--warn))',
-        danger: 'hsl(var(--danger))',
+        danger: {
+          DEFAULT: 'hsl(var(--danger))',
+          ink: 'hsl(var(--danger-ink))',
+        },
         info: 'hsl(var(--info))',
         ring: 'hsl(var(--ring))',
         chart: {
