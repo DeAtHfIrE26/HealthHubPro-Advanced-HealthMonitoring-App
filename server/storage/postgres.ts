@@ -39,6 +39,29 @@ import type {
   WorkoutFilter,
 } from './types.js';
 
+/**
+ * Postgres error codes meaning "the thing you are creating is already there",
+ * raised when two connections create the same object at once.
+ *
+ * 42P07 duplicate_table and 42710 duplicate_object are the direct forms.
+ * 23505 is the indirect one: creating a table also creates its implicit
+ * sequence, and losing that insert into pg_class surfaces as a unique
+ * violation on a catalog index rather than as a duplicate-object error. Only
+ * catalog constraints count, so a genuine unique violation on application
+ * data is never swallowed.
+ */
+const DUPLICATE_OBJECT_CODES = new Set(['42P07', '42710', '42P06', '42723']);
+
+export function isConcurrentCreate(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && depth < 5; depth += 1) {
+    const { code, constraint } = e as { code?: string; constraint?: string };
+    if (code && DUPLICATE_OBJECT_CODES.has(code)) return true;
+    if (code === '23505' && constraint?.startsWith('pg_')) return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 export class PostgresStorage implements Storage {
   readonly persistent = true;
 
@@ -53,7 +76,29 @@ export class PostgresStorage implements Storage {
     if (this.initialised) return;
     this.initialised = true;
 
-    await this.createSchema();
+    /*
+     * Only touch DDL when the schema is actually absent.
+     *
+     * This used to run nine CREATE statements on every cold start. That cost
+     * nine HTTP round trips each time on Neon's driver, and it broke: two
+     * instances cold-starting together both found the tables missing and both
+     * created them, and the loser returned a 500. Seen in production as
+     *
+     *   NeonDbError 23505: duplicate key value violates unique constraint
+     *   "pg_class_relname_nsp_index" ... Key (relname)=(users_id_seq)
+     *
+     * because CREATE TABLE IF NOT EXISTS is not atomic -- the existence check
+     * and the creation are separate steps with a gap between them. Reproduced
+     * locally against Postgres 16 with twelve concurrent creates behind a
+     * barrier, where it surfaces as 42P07 instead: same race, caught a moment
+     * later.
+     *
+     * The probe closes the common case, and createSchema tolerates the race
+     * for the genuine first boot where several instances can still collide.
+     */
+    if (!(await this.schemaExists())) {
+      await this.createSchema();
+    }
 
     const [existing] = await this.db.select({ n: count() }).from(users);
     if ((existing?.n ?? 0) > 0) return;
@@ -62,9 +107,22 @@ export class PostgresStorage implements Storage {
   }
 
   /**
+   * Whether the schema is already in place.
+   *
+   * Checks the table created last, so a boot interrupted halfway through
+   * createSchema is completed on the next one rather than left broken.
+   */
+  private async schemaExists(): Promise<boolean> {
+    const rows = await this.db.execute(
+      sql`select to_regclass('public.challenge_participants') is not null as present`,
+    );
+    const row = (rows as unknown as Array<{ present: boolean }>)[0];
+    return row?.present === true;
+  }
+
+  /**
    * Created with raw DDL rather than drizzle-kit so a fresh database works on
-   * first boot without a separate migration step. `IF NOT EXISTS` throughout
-   * keeps it safe to run on every cold start.
+   * first boot without a separate migration step.
    */
   private async createSchema(): Promise<void> {
     const statements = [
@@ -141,10 +199,26 @@ export class PostgresStorage implements Storage {
     ];
 
     for (const statement of statements) {
-      await this.db.execute(sql.raw(statement));
+      try {
+        await this.db.execute(sql.raw(statement));
+      } catch (error) {
+        // Another instance won the same first boot. Its object is the one we
+        // wanted, so carry on; anything else is a real failure.
+        if (!isConcurrentCreate(error)) throw error;
+      }
     }
   }
 
+  /**
+   * Seeds a fresh database, once, even if several instances try at the same
+   * time.
+   *
+   * The count check in init() has the same gap as CREATE IF NOT EXISTS: two
+   * cold starts can both read zero users and both proceed. The users insert
+   * is the claim -- `username` is unique, so exactly one caller gets rows
+   * back and the rest bail out before duplicating the workouts, challenges
+   * and thirty days of activity that follow.
+   */
   private async seed(): Promise<void> {
     const today = todayIso();
     const data = await buildSeed(today);
@@ -164,7 +238,10 @@ export class PostgresStorage implements Storage {
           location: u.location,
         })),
       )
+      .onConflictDoNothing()
       .returning();
+
+    if (insertedUsers.length === 0) return;
 
     const insertedWorkouts = await this.db.insert(workouts).values(data.workouts).returning();
     const insertedChallenges = await this.db.insert(challenges).values(data.challenges).returning();

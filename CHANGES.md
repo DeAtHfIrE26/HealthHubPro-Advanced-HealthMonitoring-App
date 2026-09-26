@@ -246,10 +246,54 @@ Recorded because the measurements are the point.
 
 ---
 
+## Postgres went live mid-flight, and it had a race
+
+A `DATABASE_URL` was connected while this work was being deployed, so
+`/api/health` now reports `"persistent": true` and `PostgresStorage` executed
+in production for the first time. It worked — the schema was created, seeded,
+and filtered queries return correctly — but Vercel's runtime log caught one
+unhandled 500 in the minutes after the deploy:
+
+```
+NeonDbError 23505: duplicate key value violates unique constraint
+"pg_class_relname_nsp_index"
+Key (relname, relnamespace)=(users_id_seq, 2200) already exists
+  at PostgresStorage.createSchema -> init -> getStorage -> attachUser
+```
+
+**`CREATE TABLE IF NOT EXISTS` is not atomic.** The existence check and the
+creation are separate steps, and two serverless instances cold-starting
+together — exactly what happens on the first requests after a deploy — both
+find the table missing and both create it. The loser 500s. Neon caught it on
+the implicit sequence rather than the table, hence the catalogue constraint
+in the message.
+
+Reproduced locally against Postgres 16, twelve concurrent creates released
+from a shared barrier: it failed on **round 3 of 25**, there surfacing as
+`42P07 relation "users" already exists` — the same race caught a moment
+later. With the fix in place, **25 rounds × 12 concurrent creates, zero
+failures.**
+
+Three changes:
+
+- `init()` probes with `to_regclass` and only runs DDL when the schema is
+  genuinely absent. That removes nine HTTP round trips from every cold start
+  (the 300–600 ms noted below) and shrinks the race window to real first
+  boots.
+- `createSchema()` tolerates duplicate-object errors — `42P07`, `42710`,
+  `42P06`, `42723`, and `23505` **only** when the constraint is a `pg_`
+  catalogue one, so a genuine unique violation on application data still
+  surfaces. 13 unit tests cover the predicate, including the exact
+  production error object and a self-referential cause chain.
+- `seed()` had the same gap: two instances could both read zero users and
+  both seed. The users insert is now the claim — `username` is unique, so
+  exactly one caller gets rows back and the rest return before duplicating
+  the workouts, challenges and thirty days of activity.
+
 ## Not done, and why
 
-**The Postgres query work is deferred.** It is real but latent — none of it
-executes today, because no `DATABASE_URL` is set.
+**The Postgres query work is still deferred**, though it is no longer latent
+now that a database is connected.
 
 - `GET /challenges` issues 1 + 3×4 = **13 queries**.
 - `GET /challenges/:id/leaderboard` issues **9**, and polls every 5 s — 108
@@ -258,18 +302,18 @@ executes today, because no `DATABASE_URL` is set.
   compute against a free-tier allowance.
 - `activity_stats_user_idx ON (user_id)` duplicates the index Postgres already
   creates for `UNIQUE (user_id, date)`, which serves `user_id`-prefix lookups.
-- `init()` re-runs 9 `CREATE ... IF NOT EXISTS` statements plus a `COUNT` on
-  every cold start — roughly 300–600 ms on Neon HTTP.
 - `GET /api/export` is unbounded and built as one in-memory string: 213 kB for
   three years of data.
 
-I recommended deferring this until there is a database, so the fixes can be
-shown with real `EXPLAIN ANALYZE` before and after rather than asserted. The
-same goes for the index claim above — no database exists yet, so it is reasoned
-from the schema, not measured.
+These still want real `EXPLAIN ANALYZE` before and after rather than an
+assertion, and that needs the connection string in a place the test suite can
+reach — it currently lives only in Vercel's environment. The duplicate-index
+claim is likewise reasoned from the schema, not measured.
 
-**`PostgresStorage` has still never executed.** Its 7 parity tests skip without
-a connection string.
+**`PostgresStorage` has now executed in production** and serves the live site.
+Its 7 parity tests still skip locally, because the suite has no
+`DATABASE_URL`; the Neon HTTP driver cannot talk to a plain local Postgres, so
+closing that gap means either a Neon branch for CI or a local HTTP proxy.
 
 ---
 
@@ -286,7 +330,7 @@ egress policy blocks `*.vercel.app`, so no browser here can reach the live
 deployment. From any unrestricted machine:
 
 ```bash
-npm run verify                  # lint, typecheck, 233 unit/integration tests, build
+npm run verify                  # lint, typecheck, 246 unit/integration tests, build
 npm run test:e2e                # 108 end-to-end tests, desktop + mobile
 node .perf/measure.mjs          # waterfall, Web Vitals, long tasks
 node .perf/throttled.mjs        # the same under Fast 3G + 4x CPU
